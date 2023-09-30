@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using ARControl.GameData;
 using ARControl.Windows;
@@ -17,12 +18,12 @@ using ImGuiNET;
 
 namespace ARControl;
 
+[SuppressMessage("ReSharper", "UnusedType.Global")]
 public sealed class AutoRetainerControlPlugin : IDalamudPlugin
 {
     private readonly WindowSystem _windowSystem = new(nameof(AutoRetainerControlPlugin));
 
     private readonly DalamudPluginInterface _pluginInterface;
-    private readonly DataManager _dataManager;
     private readonly ClientState _clientState;
     private readonly ChatGui _chatGui;
     private readonly CommandManager _commandManager;
@@ -36,14 +37,13 @@ public sealed class AutoRetainerControlPlugin : IDalamudPlugin
         ClientState clientState, ChatGui chatGui, CommandManager commandManager)
     {
         _pluginInterface = pluginInterface;
-        _dataManager = dataManager;
         _clientState = clientState;
         _chatGui = chatGui;
         _commandManager = commandManager;
 
         _configuration = (Configuration?)_pluginInterface.GetPluginConfig() ?? new Configuration();
 
-        _gameCache = new GameCache(_dataManager);
+        _gameCache = new GameCache(dataManager);
         _configWindow = new ConfigWindow(_pluginInterface, _configuration, _gameCache, _clientState, _commandManager);
         _windowSystem.AddWindow(_configWindow);
 
@@ -143,6 +143,7 @@ public sealed class AutoRetainerControlPlugin : IDalamudPlugin
                                     $"Setting AR to use venture {venture.RowId}, which should retrieve {reward.Quantity}x {venture.Name}");
                                 _autoRetainerApi.SetVenture(venture.RowId);
 
+                                retainer.LastVenture = venture.RowId;
                                 queuedItem.RemainingQuantity =
                                     Math.Max(0, queuedItem.RemainingQuantity - reward.Quantity);
                                 _pluginInterface.SavePluginConfig(_configuration);
@@ -158,6 +159,9 @@ public sealed class AutoRetainerControlPlugin : IDalamudPlugin
                     _chatGui.Print("ARC → No tasks left, using QC");
                     PluginLog.Information($"No tasks left (previous venture = {retainer.LastVenture}), using QC");
                     _autoRetainerApi.SetVenture(395);
+
+                    retainer.LastVenture = 395;
+                    _pluginInterface.SavePluginConfig(_configuration);
                 }
                 else
                     PluginLog.Information("Not changing venture plan, already 395");
@@ -181,7 +185,7 @@ public sealed class AutoRetainerControlPlugin : IDalamudPlugin
 
     private void TerritoryChanged(object? sender, ushort e) => Sync();
 
-    public void Sync()
+    private void Sync()
     {
         bool save = false;
 

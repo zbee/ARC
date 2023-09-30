@@ -194,7 +194,7 @@ internal sealed class ConfigWindow : Window
 
                     ImGui.PushItemWidth(ImGui.GetFontSize() * 30);
                     Vector4 buttonColor = new Vector4();
-                    if (character.Managed && character.Retainers.Count > 0)
+                    if (character is { Managed: true, Retainers.Count: > 0 })
                     {
                         if (character.Retainers.All(x => x.Managed))
                             buttonColor = ImGuiColors.HealerGreen;
@@ -283,7 +283,7 @@ internal sealed class ConfigWindow : Window
                 {
                     bool currentCharacter = _clientState.LocalContentId == ch.Character.LocalContentId;
                     ImGui.BeginDisabled(currentCharacter);
-                    if (ImGuiComponents.IconButton($"SwitchChacters{ch.Character.LocalContentId}",
+                    if (ImGuiComponents.IconButton($"SwitchCharacters{ch.Character.LocalContentId}",
                             FontAwesomeIcon.DoorOpen))
                     {
                         _commandManager.ProcessCommand($"/ays relog {ch.Character.CharacterName}@{ch.Character.WorldName}");
