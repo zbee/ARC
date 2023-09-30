@@ -19,7 +19,7 @@ using ImGuiNET;
 namespace ARControl;
 
 [SuppressMessage("ReSharper", "UnusedType.Global")]
-public sealed class AutoRetainerControlPlugin : IDalamudPlugin
+public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
 {
     private readonly WindowSystem _windowSystem = new(nameof(AutoRetainerControlPlugin));
 
@@ -30,6 +30,7 @@ public sealed class AutoRetainerControlPlugin : IDalamudPlugin
 
     private readonly Configuration _configuration;
     private readonly GameCache _gameCache;
+    private readonly VentureResolver _ventureResolver;
     private readonly ConfigWindow _configWindow;
     private readonly AutoRetainerApi _autoRetainerApi;
 
@@ -44,6 +45,7 @@ public sealed class AutoRetainerControlPlugin : IDalamudPlugin
         _configuration = (Configuration?)_pluginInterface.GetPluginConfig() ?? new Configuration();
 
         _gameCache = new GameCache(dataManager);
+        _ventureResolver = new VentureResolver(_gameCache);
         _configWindow = new ConfigWindow(_pluginInterface, _configuration, _gameCache, _clientState, _commandManager);
         _windowSystem.AddWindow(_configWindow);
 
@@ -92,64 +94,25 @@ public sealed class AutoRetainerControlPlugin : IDalamudPlugin
                 foreach (var queuedItem in _configuration.QueuedItems.Where(x => x.RemainingQuantity > 0))
                 {
                     PluginLog.Information($"Checking venture info for itemId {queuedItem.ItemId}");
-                    var venture = _gameCache.Ventures
-                        .Where(x => retainer.Level >= x.Level)
-                        .FirstOrDefault(x => x.ItemId == queuedItem.ItemId && x.MatchesJob(retainer.Job));
-                    if (venture == null)
+
+                    var (venture, reward) = _ventureResolver.ResolveVenture(ch, retainer, queuedItem);
+                    if (reward == null)
                     {
-                        PluginLog.Information($"No applicable venture found for itemId {queuedItem.ItemId}");
+                        PluginLog.Information("Retainer can't complete venture");
                     }
                     else
                     {
-                        var itemToGather = _gameCache.ItemsToGather.FirstOrDefault(x => x.ItemId == queuedItem.ItemId);
-                        if (itemToGather != null && !ch.GatheredItems.Contains(itemToGather.GatheredItemId))
-                        {
-                            PluginLog.Information($"Character hasn't gathered {venture.Name} yet");
-                        }
-                        else
-                        {
-                            PluginLog.Information(
-                                $"Found venture {venture.Name}, row = {venture.RowId}, checking if it is suitable");
-                            VentureReward? reward = null;
-                            if (venture.CategoryName is "MIN" or "BTN")
-                            {
-                                if (retainer.Gathering >= venture.RequiredGathering)
-                                    reward = venture.Rewards.Last(
-                                        x => retainer.Perception >= x.PerceptionMinerBotanist);
-                            }
-                            else if (venture.CategoryName == "FSH")
-                            {
-                                if (retainer.Gathering >= venture.RequiredGathering)
-                                    reward = venture.Rewards.Last(
-                                        x => retainer.Perception >= x.PerceptionFisher);
-                            }
-                            else
-                            {
-                                if (retainer.ItemLevel >= venture.ItemLevelCombat)
-                                    reward = venture.Rewards.Last(
-                                        x => retainer.ItemLevel >= x.ItemLevelCombat);
-                            }
+                        _chatGui.Print(
+                            $"ARC → Overriding venture to collect {reward.Quantity}x {venture!.Name}.");
+                        PluginLog.Information(
+                            $"Setting AR to use venture {venture.RowId}, which should retrieve {reward.Quantity}x {venture.Name}");
+                        _autoRetainerApi.SetVenture(venture.RowId);
 
-                            if (reward == null)
-                            {
-                                PluginLog.Information(
-                                    "Retainer doesn't have enough stats for the venture and would return no items");
-                            }
-                            else
-                            {
-                                _chatGui.Print(
-                                    $"ARC → Overriding venture to collect {reward.Quantity}x {venture.Name}.");
-                                PluginLog.Information(
-                                    $"Setting AR to use venture {venture.RowId}, which should retrieve {reward.Quantity}x {venture.Name}");
-                                _autoRetainerApi.SetVenture(venture.RowId);
-
-                                retainer.LastVenture = venture.RowId;
-                                queuedItem.RemainingQuantity =
-                                    Math.Max(0, queuedItem.RemainingQuantity - reward.Quantity);
-                                _pluginInterface.SavePluginConfig(_configuration);
-                                return;
-                            }
-                        }
+                        retainer.LastVenture = venture.RowId;
+                        queuedItem.RemainingQuantity =
+                            Math.Max(0, queuedItem.RemainingQuantity - reward.Quantity);
+                        _pluginInterface.SavePluginConfig(_configuration);
+                        return;
                     }
                 }
 
@@ -171,11 +134,13 @@ public sealed class AutoRetainerControlPlugin : IDalamudPlugin
 
     private void RetainerTaskButtonDraw(ulong characterId, string retainerName)
     {
-        Configuration.CharacterConfiguration? characterConfiguration = _configuration.Characters.FirstOrDefault(x => x.LocalContentId == characterId);
+        Configuration.CharacterConfiguration? characterConfiguration =
+            _configuration.Characters.FirstOrDefault(x => x.LocalContentId == characterId);
         if (characterConfiguration is not { Managed: true })
             return;
 
-        Configuration.RetainerConfiguration? retainer = characterConfiguration.Retainers.FirstOrDefault(x => x.Name == retainerName);
+        Configuration.RetainerConfiguration? retainer =
+            characterConfiguration.Retainers.FirstOrDefault(x => x.Name == retainerName);
         if (retainer is not { Managed: true })
             return;
 
@@ -184,104 +149,6 @@ public sealed class AutoRetainerControlPlugin : IDalamudPlugin
     }
 
     private void TerritoryChanged(object? sender, ushort e) => Sync();
-
-    private void Sync()
-    {
-        bool save = false;
-
-        // FIXME This should have a way to get blacklisted character ids
-        foreach (ulong registeredCharacterId in _autoRetainerApi.GetRegisteredCharacters())
-        {
-            PluginLog.Information($"ch → {registeredCharacterId:X}");
-            var offlineCharacterData = _autoRetainerApi.GetOfflineCharacterData(registeredCharacterId);
-            if (offlineCharacterData.ExcludeRetainer)
-                continue;
-
-            var character = _configuration.Characters.SingleOrDefault(x => x.LocalContentId == registeredCharacterId);
-            if (character == null)
-            {
-                character = new Configuration.CharacterConfiguration
-                {
-                    LocalContentId = registeredCharacterId,
-                    CharacterName = offlineCharacterData.Name,
-                    WorldName = offlineCharacterData.World,
-                    Managed = false,
-                };
-
-                save = true;
-                _configuration.Characters.Add(character);
-            }
-
-            if (character.GatheredItems != offlineCharacterData.UnlockedGatheringItems)
-            {
-                character.GatheredItems = offlineCharacterData.UnlockedGatheringItems;
-                save = true;
-            }
-
-            foreach (var retainerData in offlineCharacterData.RetainerData)
-            {
-                var retainer = character.Retainers.SingleOrDefault(x => x.Name == retainerData.Name);
-                if (retainer == null)
-                {
-                    retainer = new Configuration.RetainerConfiguration
-                    {
-                        Name = retainerData.Name,
-                        Managed = false,
-                    };
-
-                    save = true;
-                    character.Retainers.Add(retainer);
-                }
-
-                if (retainer.DisplayOrder != retainerData.DisplayOrder)
-                {
-                    retainer.DisplayOrder = retainerData.DisplayOrder;
-                    save = true;
-                }
-
-                if (retainer.Level != retainerData.Level)
-                {
-                    retainer.Level = retainerData.Level;
-                    save = true;
-                }
-
-                if (retainer.Job != retainerData.Job)
-                {
-                    retainer.Job = retainerData.Job;
-                    save = true;
-                }
-
-                if (retainer.LastVenture != retainerData.VentureID)
-                {
-                    retainer.LastVenture = retainerData.VentureID;
-                    save = true;
-                }
-
-                var additionalData =
-                    _autoRetainerApi.GetAdditionalRetainerData(registeredCharacterId, retainerData.Name);
-                if (retainer.ItemLevel != additionalData.Ilvl)
-                {
-                    retainer.ItemLevel = additionalData.Ilvl;
-                    save = true;
-                }
-
-                if (retainer.Gathering != additionalData.Gathering)
-                {
-                    retainer.Gathering = additionalData.Gathering;
-                    save = true;
-                }
-
-                if (retainer.Perception != additionalData.Perception)
-                {
-                    retainer.Perception = additionalData.Perception;
-                    save = true;
-                }
-            }
-        }
-
-        if (save)
-            _pluginInterface.SavePluginConfig(_configuration);
-    }
 
     private void ProcessCommand(string command, string arguments)
     {
@@ -302,6 +169,5 @@ public sealed class AutoRetainerControlPlugin : IDalamudPlugin
 
         _autoRetainerApi.Dispose();
         ECommonsMain.Dispose();
-
     }
 }

@@ -74,7 +74,7 @@
 
 
     <ItemGroup>
-      <Folder Include="External\" />
+        <Folder Include="External\"/>
     </ItemGroup>
 
     <Target Name="RenameLatestZip" AfterTargets="PackagePlugin">

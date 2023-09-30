@@ -187,7 +187,8 @@ internal sealed class ConfigWindow : Window
                          .OrderBy(x => x.LocalContentId)
                          .GroupBy(x => x.WorldName))
             {
-                ImGui.CollapsingHeader(world.Key, ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.Bullet);
+                ImGui.CollapsingHeader(world.Key,
+                    ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.Bullet);
                 foreach (var character in world)
                 {
                     ImGui.PushID($"Char{character.LocalContentId}");
@@ -286,7 +287,8 @@ internal sealed class ConfigWindow : Window
                     if (ImGuiComponents.IconButton($"SwitchCharacters{ch.Character.LocalContentId}",
                             FontAwesomeIcon.DoorOpen))
                     {
-                        _commandManager.ProcessCommand($"/ays relog {ch.Character.CharacterName}@{ch.Character.WorldName}");
+                        _commandManager.ProcessCommand(
+                            $"/ays relog {ch.Character.CharacterName}@{ch.Character.WorldName}");
                     }
 
                     ImGui.EndDisabled();
@@ -329,6 +331,7 @@ internal sealed class ConfigWindow : Window
                                 {
                                     ImGui.Text(item.GatheredItem.Name);
                                 }
+
                                 ImGui.PopStyleColor();
                             }
                         }
