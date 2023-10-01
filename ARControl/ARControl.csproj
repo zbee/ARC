@@ -73,9 +73,6 @@
     </ItemGroup>
 
 
-    <ItemGroup>
-        <Folder Include="External\"/>
-    </ItemGroup>
 
     <Target Name="RenameLatestZip" AfterTargets="PackagePlugin">
         <Exec Command="rename $(OutDir)$(AssemblyName)\latest.zip $(AssemblyName)-$(Version).zip"/>

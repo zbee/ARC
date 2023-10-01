@@ -148,9 +148,9 @@ internal sealed class ConfigWindow : Window
                 }
 
                 ImGui.OpenPopupOnItemClick($"###ctx{i}", ImGuiPopupFlags.MouseButtonRight);
-                if (ImGui.BeginPopup($"###ctx{i}"))
+                if (ImGui.BeginPopupContextItem($"###ctx{i}"))
                 {
-                    if (ImGui.Selectable($"Remove {venture.Name}"))
+                    if (ImGui.MenuItem($"Remove {venture.Name}"))
                         itemToRemove = item;
 
                     ImGui.EndPopup();
