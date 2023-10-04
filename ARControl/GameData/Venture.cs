@@ -1,12 +1,12 @@
 ﻿using System.Collections.Generic;
-using Dalamud.Data;
+using Dalamud.Plugin.Services;
 using Lumina.Excel.GeneratedSheets;
 
 namespace ARControl.GameData;
 
 internal sealed class Venture
 {
-    public Venture(DataManager dataManager, RetainerTask retainerTask)
+    public Venture(IDataManager dataManager, RetainerTask retainerTask)
     {
         RowId = retainerTask.RowId;
         Category = retainerTask.ClassJobCategory.Value!;

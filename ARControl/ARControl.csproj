@@ -16,7 +16,7 @@
 
     <PropertyGroup>
         <DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
-        <AutoRetainerLibPath>$(appdata)\XIVLauncher\installedPlugins\AutoRetainer\4.1.2.5\</AutoRetainerLibPath>
+        <AutoRetainerLibPath>$(appdata)\XIVLauncher\installedPlugins\AutoRetainer\4.2.0.2\</AutoRetainerLibPath>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux)))'">
@@ -24,8 +24,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Dalamud.ContextMenu" Version="1.2.3"/>
-        <PackageReference Include="DalamudPackager" Version="2.1.11"/>
+        <PackageReference Include="DalamudPackager" Version="2.1.12"/>
     </ItemGroup>
 
     <ItemGroup>
@@ -35,10 +34,6 @@
         </Reference>
         <Reference Include="ImGui.NET">
             <HintPath>$(DalamudLibPath)ImGui.NET.dll</HintPath>
-            <Private>false</Private>
-        </Reference>
-        <Reference Include="ImGuiScene">
-            <HintPath>$(DalamudLibPath)ImGuiScene.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="Lumina">
@@ -51,10 +46,6 @@
         </Reference>
         <Reference Include="Newtonsoft.Json">
             <HintPath>$(DalamudLibPath)Newtonsoft.Json.dll</HintPath>
-            <Private>false</Private>
-        </Reference>
-        <Reference Include="FFXIVClientStructs">
-            <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="FFXIVClientStructs">

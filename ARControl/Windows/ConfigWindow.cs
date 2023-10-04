@@ -2,15 +2,12 @@
 using System.Linq;
 using System.Numerics;
 using ARControl.GameData;
-using Dalamud.Game.ClientState;
-using Dalamud.Game.Command;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
-using Dalamud.Interface.Style;
 using Dalamud.Interface.Windowing;
-using Dalamud.Logging;
 using Dalamud.Plugin;
+using Dalamud.Plugin.Services;
 using ECommons.ImGuiMethods;
 using ImGuiNET;
 
@@ -27,8 +24,9 @@ internal sealed class ConfigWindow : Window
     private readonly DalamudPluginInterface _pluginInterface;
     private readonly Configuration _configuration;
     private readonly GameCache _gameCache;
-    private readonly ClientState _clientState;
-    private readonly CommandManager _commandManager;
+    private readonly IClientState _clientState;
+    private readonly ICommandManager _commandManager;
+    private readonly IPluginLog _pluginLog;
 
     private string _searchString = string.Empty;
     private Configuration.QueuedItem? _dragDropSource;
@@ -40,8 +38,9 @@ internal sealed class ConfigWindow : Window
         DalamudPluginInterface pluginInterface,
         Configuration configuration,
         GameCache gameCache,
-        ClientState clientState,
-        CommandManager commandManager)
+        IClientState clientState,
+        ICommandManager commandManager,
+        IPluginLog pluginLog)
         : base("ARC###ARControlConfig")
     {
         _pluginInterface = pluginInterface;
@@ -49,6 +48,7 @@ internal sealed class ConfigWindow : Window
         _gameCache = gameCache;
         _clientState = clientState;
         _commandManager = commandManager;
+        _pluginLog = pluginLog;
     }
 
     public override void Draw()
@@ -66,7 +66,7 @@ internal sealed class ConfigWindow : Window
     {
         if (ImGui.BeginTabItem("Venture Queue"))
         {
-            if (ImGui.BeginCombo("Venture...##VentureSelection", ""))
+            if (ImGui.BeginCombo("Add Item...##VentureSelection", ""))
             {
                 ImGuiEx.SetNextItemFullWidth();
                 ImGui.InputTextWithHint("", "Filter...", ref _searchString, 256);
@@ -95,7 +95,6 @@ internal sealed class ConfigWindow : Window
                 ImGui.EndCombo();
             }
 
-            ImGui.Checkbox("Enable Drag&Drop", ref _enableDragDrop);
             ImGui.Separator();
 
             ImGui.Indent(30);
@@ -167,13 +166,29 @@ internal sealed class ConfigWindow : Window
 
             if (itemToAdd != null)
             {
-                PluginLog.Information($"Updating {itemToAdd.ItemId} → {indexToAdd}");
+                _pluginLog.Information($"Updating {itemToAdd.ItemId} → {indexToAdd}");
                 _configuration.QueuedItems.Remove(itemToAdd);
                 _configuration.QueuedItems.Insert(indexToAdd, itemToAdd);
                 Save();
             }
 
             ImGui.Unindent(30);
+
+            if (_configuration.QueuedItems.Count > 0)
+                ImGui.Separator();
+
+            if (ImGuiComponents.IconButtonWithText(_enableDragDrop ? FontAwesomeIcon.Times : FontAwesomeIcon.Sort, _enableDragDrop ? "Disable Drag&Drop" : "Enable Drag&Drop"))
+            {
+                _enableDragDrop = !_enableDragDrop;
+            }
+
+            ImGui.SameLine();
+            if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Check, "Remove all finished items"))
+            {
+                if (_configuration.QueuedItems.RemoveAll(q => q.RemainingQuantity == 0) > 0)
+                    Save();
+            }
+
             ImGui.EndTabItem();
         }
     }

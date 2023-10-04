@@ -1,13 +1,13 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using Dalamud.Data;
+using Dalamud.Plugin.Services;
 using Lumina.Excel.GeneratedSheets;
 
 namespace ARControl.GameData;
 
 internal sealed class GameCache
 {
-    public GameCache(DataManager dataManager)
+    public GameCache(IDataManager dataManager)
     {
         Jobs = dataManager.GetExcelSheet<ClassJob>()!.ToDictionary(x => x.RowId, x => x.Abbreviation.ToString());
         Ventures = dataManager.GetExcelSheet<RetainerTask>()!

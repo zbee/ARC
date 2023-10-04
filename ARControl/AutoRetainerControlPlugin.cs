@@ -4,15 +4,12 @@ using System.Linq;
 using ARControl.GameData;
 using ARControl.Windows;
 using AutoRetainerAPI;
-using Dalamud.Data;
-using Dalamud.Game.ClientState;
 using Dalamud.Game.Command;
-using Dalamud.Game.Gui;
 using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Windowing;
-using Dalamud.Logging;
 using Dalamud.Plugin;
+using Dalamud.Plugin.Services;
 using ECommons;
 using ImGuiNET;
 
@@ -24,9 +21,10 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
     private readonly WindowSystem _windowSystem = new(nameof(AutoRetainerControlPlugin));
 
     private readonly DalamudPluginInterface _pluginInterface;
-    private readonly ClientState _clientState;
-    private readonly ChatGui _chatGui;
-    private readonly CommandManager _commandManager;
+    private readonly IClientState _clientState;
+    private readonly IChatGui _chatGui;
+    private readonly ICommandManager _commandManager;
+    private readonly IPluginLog _pluginLog;
 
     private readonly Configuration _configuration;
     private readonly GameCache _gameCache;
@@ -34,19 +32,20 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
     private readonly ConfigWindow _configWindow;
     private readonly AutoRetainerApi _autoRetainerApi;
 
-    public AutoRetainerControlPlugin(DalamudPluginInterface pluginInterface, DataManager dataManager,
-        ClientState clientState, ChatGui chatGui, CommandManager commandManager)
+    public AutoRetainerControlPlugin(DalamudPluginInterface pluginInterface, IDataManager dataManager,
+        IClientState clientState, IChatGui chatGui, ICommandManager commandManager, IPluginLog pluginLog)
     {
         _pluginInterface = pluginInterface;
         _clientState = clientState;
         _chatGui = chatGui;
         _commandManager = commandManager;
+        _pluginLog = pluginLog;
 
         _configuration = (Configuration?)_pluginInterface.GetPluginConfig() ?? new Configuration();
 
         _gameCache = new GameCache(dataManager);
-        _ventureResolver = new VentureResolver(_gameCache);
-        _configWindow = new ConfigWindow(_pluginInterface, _configuration, _gameCache, _clientState, _commandManager);
+        _ventureResolver = new VentureResolver(_gameCache, _pluginLog);
+        _configWindow = new ConfigWindow(_pluginInterface, _configuration, _gameCache, _clientState, _commandManager, _pluginLog);
         _windowSystem.AddWindow(_configWindow);
 
         ECommonsMain.Init(_pluginInterface, this);
@@ -57,54 +56,55 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
         _autoRetainerApi.OnSendRetainerToVenture += SendRetainerToVenture;
         _autoRetainerApi.OnRetainerPostVentureTaskDraw += RetainerTaskButtonDraw;
         _clientState.TerritoryChanged += TerritoryChanged;
-        _commandManager.AddHandler("/arc", new CommandInfo(ProcessCommand));
+        _commandManager.AddHandler("/arc", new CommandInfo(ProcessCommand)
+        {
+            HelpMessage = "Manage retainers"
+        });
 
         if (_autoRetainerApi.Ready)
             Sync();
     }
-
-    public string Name => "ARC";
 
     private void SendRetainerToVenture(string retainerName)
     {
         var ch = _configuration.Characters.SingleOrDefault(x => x.LocalContentId == _clientState.LocalContentId);
         if (ch == null)
         {
-            PluginLog.Information("No character information found");
+            _pluginLog.Information("No character information found");
         }
         else if (!ch.Managed)
         {
-            PluginLog.Information("Character is not managed");
+            _pluginLog.Information("Character is not managed");
         }
         else
         {
             var retainer = ch.Retainers.SingleOrDefault(x => x.Name == retainerName);
             if (retainer == null)
             {
-                PluginLog.Information("No retainer information found");
+                _pluginLog.Information("No retainer information found");
             }
             else if (!retainer.Managed)
             {
-                PluginLog.Information("Retainer is not managed");
+                _pluginLog.Information("Retainer is not managed");
             }
             else
             {
-                PluginLog.Information("Checking tasks...");
+                _pluginLog.Information("Checking tasks...");
                 Sync();
                 foreach (var queuedItem in _configuration.QueuedItems.Where(x => x.RemainingQuantity > 0))
                 {
-                    PluginLog.Information($"Checking venture info for itemId {queuedItem.ItemId}");
+                    _pluginLog.Information($"Checking venture info for itemId {queuedItem.ItemId}");
 
                     var (venture, reward) = _ventureResolver.ResolveVenture(ch, retainer, queuedItem);
                     if (reward == null)
                     {
-                        PluginLog.Information("Retainer can't complete venture");
+                        _pluginLog.Information("Retainer can't complete venture");
                     }
                     else
                     {
                         _chatGui.Print(
-                            $"ARC → Overriding venture to collect {reward.Quantity}x {venture!.Name}.");
-                        PluginLog.Information(
+                            $"[ARC] Sending retainer {retainerName} to collect {reward.Quantity}x {venture!.Name}.");
+                        _pluginLog.Information(
                             $"Setting AR to use venture {venture.RowId}, which should retrieve {reward.Quantity}x {venture.Name}");
                         _autoRetainerApi.SetVenture(venture.RowId);
 
@@ -119,15 +119,15 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
                 // fallback: managed but no venture found
                 if (retainer.LastVenture != 395)
                 {
-                    _chatGui.Print("ARC → No tasks left, using QC");
-                    PluginLog.Information($"No tasks left (previous venture = {retainer.LastVenture}), using QC");
+                    _chatGui.Print($"[ARC] No tasks left for retainer {retainerName}, sending to Quick Venture.");
+                    _pluginLog.Information($"No tasks left (previous venture = {retainer.LastVenture}), using QC");
                     _autoRetainerApi.SetVenture(395);
 
                     retainer.LastVenture = 395;
                     _pluginInterface.SavePluginConfig(_configuration);
                 }
                 else
-                    PluginLog.Information("Not changing venture plan, already 395");
+                    _pluginLog.Information("Not changing venture plan, already 395");
             }
         }
     }
@@ -148,7 +148,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
         ImGuiComponents.IconButton(FontAwesomeIcon.Book);
     }
 
-    private void TerritoryChanged(object? sender, ushort e) => Sync();
+    private void TerritoryChanged(ushort e) => Sync();
 
     private void ProcessCommand(string command, string arguments)
     {

@@ -1,5 +1,4 @@
 ﻿using System.Linq;
-using Dalamud.Logging;
 
 namespace ARControl;
 
@@ -12,7 +11,7 @@ partial class AutoRetainerControlPlugin
         // FIXME This should have a way to get blacklisted character ids
         foreach (ulong registeredCharacterId in _autoRetainerApi.GetRegisteredCharacters())
         {
-            PluginLog.Information($"ch → {registeredCharacterId:X}");
+            _pluginLog.Verbose($"Sync for character {registeredCharacterId:X}");
             var offlineCharacterData = _autoRetainerApi.GetOfflineCharacterData(registeredCharacterId);
             if (offlineCharacterData.ExcludeRetainer)
                 continue;

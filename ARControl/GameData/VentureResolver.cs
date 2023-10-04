@@ -1,16 +1,17 @@
-﻿using System;
-using System.Linq;
-using Dalamud.Logging;
+﻿using System.Linq;
+using Dalamud.Plugin.Services;
 
 namespace ARControl.GameData;
 
 internal sealed class VentureResolver
 {
     private readonly GameCache _gameCache;
+    private readonly IPluginLog _pluginLog;
 
-    public VentureResolver(GameCache gameCache)
+    public VentureResolver(GameCache gameCache, IPluginLog pluginLog)
     {
         _gameCache = gameCache;
+        _pluginLog = pluginLog;
     }
 
     public (Venture?, VentureReward?) ResolveVenture(Configuration.CharacterConfiguration character,
@@ -21,18 +22,18 @@ internal sealed class VentureResolver
             .FirstOrDefault(x => x.ItemId == queuedItem.ItemId && x.MatchesJob(retainer.Job));
         if (venture == null)
         {
-            PluginLog.Information($"No applicable venture found for itemId {queuedItem.ItemId}");
+            _pluginLog.Information($"No applicable venture found for itemId {queuedItem.ItemId}");
             return (null, null);
         }
 
         var itemToGather = _gameCache.ItemsToGather.FirstOrDefault(x => x.ItemId == queuedItem.ItemId);
         if (itemToGather != null && !character.GatheredItems.Contains(itemToGather.GatheredItemId))
         {
-            PluginLog.Information($"Character hasn't gathered {venture.Name} yet");
+            _pluginLog.Information($"Character hasn't gathered {venture.Name} yet");
             return (null, null);
         }
 
-        PluginLog.Information(
+        _pluginLog.Information(
             $"Found venture {venture.Name}, row = {venture.RowId}, checking if it is suitable");
         VentureReward? reward = null;
         if (venture.CategoryName is "MIN" or "BTN")
