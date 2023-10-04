@@ -16,6 +16,6 @@
                 AssemblyName="$(AssemblyName)"
                 MakeZip="true"
                 VersionComponents="2"
-                Exclude="ARDiscard.deps.json;AutoRetainerAPI.pdb;ClickLib.pdb;ClickLib.xml;ECommons.pdb;ECommons.xml"/>
+                Exclude="ARControl.deps.json;AutoRetainerAPI.pdb;ECommons.pdb;ECommons.xml"/>
     </Target>
 </Project>

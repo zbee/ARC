@@ -48,18 +48,11 @@
             <HintPath>$(DalamudLibPath)Newtonsoft.Json.dll</HintPath>
             <Private>false</Private>
         </Reference>
-        <Reference Include="FFXIVClientStructs">
-            <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
-            <Private>false</Private>
-        </Reference>
         <Reference Include="AutoRetainerAPI">
             <HintPath>$(AutoRetainerLibPath)AutoRetainerAPI.dll</HintPath>
         </Reference>
         <Reference Include="ECommons">
             <HintPath>$(AutoRetainerLibPath)ECommons.dll</HintPath>
-        </Reference>
-        <Reference Include="ClickLib">
-            <HintPath>$(AutoRetainerLibPath)ClickLib.dll</HintPath>
         </Reference>
     </ItemGroup>
 
