@@ -1,13 +1,16 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using ARControl.GameData;
+using Dalamud.Game.Text;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using ECommons;
 using ECommons.ImGuiMethods;
 using ImGuiNET;
 
@@ -31,6 +34,7 @@ internal sealed class ConfigWindow : Window
     private string _searchString = string.Empty;
     private Configuration.QueuedItem? _dragDropSource;
     private bool _enableDragDrop;
+    private string _newGroupName = string.Empty;
     private bool _checkPerCharacter = true;
     private bool _onlyShowMissing = true;
 
@@ -49,22 +53,30 @@ internal sealed class ConfigWindow : Window
         _clientState = clientState;
         _commandManager = commandManager;
         _pluginLog = pluginLog;
+
+        SizeConstraints = new()
+        {
+            MinimumSize = new Vector2(480, 300),
+            MaximumSize = new Vector2(9999, 9999),
+        };
     }
 
     public override void Draw()
     {
         if (ImGui.BeginTabBar("ARConfigTabs"))
         {
-            DrawItemQueue();
+            //DrawItemQueue();
             DrawCharacters();
-            DrawGatheredItemsToCheck();
+            DrawCharacterGroups();
+            //DrawGatheredItemsToCheck();
             ImGui.EndTabBar();
         }
     }
 
+    /*
     private unsafe void DrawItemQueue()
     {
-        if (ImGui.BeginTabItem("Venture Queue"))
+        if (ImGui.BeginTabItem("Item Lists"))
         {
             if (ImGui.BeginCombo("Add Item...##VentureSelection", ""))
             {
@@ -192,7 +204,7 @@ internal sealed class ConfigWindow : Window
             ImGui.EndTabItem();
         }
     }
-
+*/
     private void DrawCharacters()
     {
         if (ImGui.BeginTabItem("Retainers"))
@@ -208,9 +220,9 @@ internal sealed class ConfigWindow : Window
                 {
                     ImGui.PushID($"Char{character.LocalContentId}");
 
-                    ImGui.PushItemWidth(ImGui.GetFontSize() * 30);
+                    ImGui.SetNextItemWidth(ImGui.GetFontSize() * 30);
                     Vector4 buttonColor = new Vector4();
-                    if (character is { Managed: true, Retainers.Count: > 0 })
+                    if (character is { Type: not Configuration.CharacterType.NotManaged, Retainers.Count: > 0 })
                     {
                         if (character.Retainers.All(x => x.Managed))
                             buttonColor = ImGuiColors.HealerGreen;
@@ -222,32 +234,110 @@ internal sealed class ConfigWindow : Window
 
                     if (ImGuiComponents.IconButton(FontAwesomeIcon.Book, buttonColor))
                     {
-                        character.Managed = !character.Managed;
+                        if (character.Type == Configuration.CharacterType.NotManaged)
+                        {
+                            character.Type = Configuration.CharacterType.Standalone;
+                            character.CharacterGroupId = Guid.Empty;
+                        }
+                        else
+                        {
+                            character.Type = Configuration.CharacterType.NotManaged;
+                            character.CharacterGroupId = Guid.Empty;
+                        }
+
                         Save();
                     }
 
                     ImGui.SameLine();
 
                     if (ImGui.CollapsingHeader(
-                            $"{character.CharacterName} {(character.Managed ? $"({character.Retainers.Count(x => x.Managed)} / {character.Retainers.Count})" : "")}###{character.LocalContentId}"))
+                            $"{character.CharacterName} {(character.Type != Configuration.CharacterType.NotManaged ? $"({character.Retainers.Count(x => x.Managed)} / {character.Retainers.Count})" : "")}###{character.LocalContentId}"))
                     {
                         ImGui.Indent(30);
-                        foreach (var retainer in character.Retainers.Where(x => x.Job > 0).OrderBy(x => x.DisplayOrder))
+
+                        List<(Guid Id, string Name)> groups =
+                            new List<(Guid Id, string Name)> { (Guid.Empty, "No Group (manually assign lists)") }
+                                .Concat(_configuration.CharacterGroups.Select(x => (x.Id, x.Name)))
+                                .ToList();
+
+
+                        if (ImGui.BeginTabBar("CharOptions"))
                         {
-                            ImGui.BeginDisabled(retainer.Level < MaxLevel);
-
-                            bool managed = retainer.Managed && retainer.Level == MaxLevel;
-                            ImGui.Text(_gameCache.Jobs[retainer.Job]);
-                            ImGui.SameLine();
-                            if (ImGui.Checkbox($"{retainer.Name}###Retainer{retainer.Name}{retainer.DisplayOrder}",
-                                    ref managed))
+                            if (character.Type != Configuration.CharacterType.NotManaged && ImGui.BeginTabItem("Venture Lists"))
                             {
-                                retainer.Managed = managed;
-                                Save();
-                            }
+                                int groupIndex = 0;
+                                if (character.Type == Configuration.CharacterType.PartOfCharacterGroup)
+                                    groupIndex = groups.FindIndex(x => x.Id == character.CharacterGroupId);
+                                if (ImGui.Combo("Character Group", ref groupIndex, groups.Select(x => x.Name).ToArray(),
+                                        groups.Count))
+                                {
+                                    if (groupIndex == 0)
+                                    {
+                                        character.Type = Configuration.CharacterType.Standalone;
+                                        character.CharacterGroupId = Guid.Empty;
+                                    }
+                                    else
+                                    {
+                                        character.Type = Configuration.CharacterType.PartOfCharacterGroup;
+                                        character.CharacterGroupId = groups[groupIndex].Id;
+                                    }
+                                    Save();
+                                }
 
-                            ImGui.EndDisabled();
+                                ImGui.Separator();
+                                if (groupIndex == 0)
+                                {
+                                    // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+                                    if (character.ItemListIds == null)
+                                        character.ItemListIds = new();
+                                    DrawListSelection(character.LocalContentId.ToString(), character.ItemListIds);
+                                }
+                                else
+                                {
+                                    ImGui.TextWrapped($"Retainers will participate in the following lists:");
+                                    ImGui.Indent(30);
+
+                                    var group = _configuration.CharacterGroups.Single(x => x.Id == groups[groupIndex].Id);
+                                    var lists = group.ItemListIds
+                                        .Where(listId => listId != Guid.Empty)
+                                        .Select(listId => _configuration.ItemLists.SingleOrDefault(x => x.Id == listId))
+                                        .ToList();
+                                    if (lists.Count > 0)
+                                    {
+                                        foreach (var list in lists)
+                                            ImGui.TextUnformatted($"{SeIconChar.LinkMarker.ToIconChar()} {list.Name}");
+                                    }
+                                    else
+                                        ImGui.TextColored(ImGuiColors.DalamudRed, "(None)");
+
+                                    ImGui.Unindent(30);
+                                    ImGui.Spacing();
+                                }
+                                ImGui.EndTabItem();
+                            }
+                            if (ImGui.BeginTabItem("Retainers"))
+                            {
+                                foreach (var retainer in character.Retainers.Where(x => x.Job > 0).OrderBy(x => x.DisplayOrder))
+                                {
+                                    ImGui.BeginDisabled(retainer.Level < MaxLevel);
+
+                                    bool managed = retainer.Managed && retainer.Level == MaxLevel;
+                                    ImGui.Text(_gameCache.Jobs[retainer.Job]);
+                                    ImGui.SameLine();
+                                    if (ImGui.Checkbox($"{retainer.Name}###Retainer{retainer.Name}{retainer.DisplayOrder}",
+                                            ref managed))
+                                    {
+                                        retainer.Managed = managed;
+                                        Save();
+                                    }
+
+                                    ImGui.EndDisabled();
+                                }
+                                ImGui.EndTabItem();
+                            }
+                            ImGui.EndTabBar();
                         }
+
 
                         ImGui.Unindent(30);
                     }
@@ -260,6 +350,91 @@ internal sealed class ConfigWindow : Window
         }
     }
 
+    private void DrawCharacterGroups()
+    {
+        if (ImGui.BeginTabItem("Groups"))
+        {
+            foreach (var group in _configuration.CharacterGroups)
+            {
+                ImGui.PushID($"##Group{group.Id}");
+
+                ImGuiComponents.IconButton(FontAwesomeIcon.Cog);
+                ImGui.SameLine();
+
+                var assignedCharacters = _configuration.Characters
+                    .Where(x => x.Type == Configuration.CharacterType.PartOfCharacterGroup &&
+                                x.CharacterGroupId == group.Id)
+                    .ToList();
+                string countLabel = assignedCharacters.Count == 0 ? "no characters"
+                    : assignedCharacters.Count == 1 ? "1 character"
+                    : $"{assignedCharacters.Count} characters";
+                if (ImGui.CollapsingHeader($"{group.Name} ({countLabel})"))
+                {
+                    ImGui.Indent(30);
+                    if (ImGui.BeginTabBar("GroupOptions"))
+                    {
+                        if (ImGui.BeginTabItem("Venture Lists"))
+                        {
+                            DrawListSelection(group.Id.ToString(), group.ItemListIds);
+                            ImGui.EndTabItem();
+                        }
+
+                        if (ImGui.BeginTabItem("Characters"))
+                        {
+                            ImGui.Text("Characters in this group:");
+                            ImGui.Indent(30);
+                            foreach (var character in assignedCharacters.OrderBy(x => x.WorldName)
+                                         .ThenBy(x => x.LocalContentId))
+                                ImGui.TextUnformatted($"{character.CharacterName} @ {character.WorldName}");
+                            ImGui.Unindent(30);
+                        }
+
+                        ImGui.EndTabBar();
+                    }
+
+                    ImGui.Unindent(30);
+                }
+
+                ImGui.PopID();
+            }
+
+            ImGui.Separator();
+
+            if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Plus, "Add Group"))
+                ImGui.OpenPopup("##AddGroup");
+
+            if (ImGui.BeginPopup("##AddGroup"))
+            {
+                bool save = ImGui.InputTextWithHint("", "Group Name...", ref _newGroupName, 64, ImGuiInputTextFlags.EnterReturnsTrue);
+                bool canSave = _newGroupName.Length >= 2 &&
+                               !_configuration.CharacterGroups.Any(x => _newGroupName.EqualsIgnoreCase(x.Name));
+                ImGui.BeginDisabled(!canSave);
+                save |= ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Save, "Save");
+                ImGui.EndDisabled();
+
+                if (canSave && save)
+                {
+                    _configuration.CharacterGroups.Add(new Configuration.CharacterGroup
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = _newGroupName,
+                        Icon = FontAwesomeIcon.None,
+                        ItemListIds = new(),
+                    });
+
+                    _newGroupName = string.Empty;
+
+                    ImGui.CloseCurrentPopup();
+                    Save();
+                }
+                ImGui.EndPopup();
+            }
+
+            ImGui.EndTabItem();
+        }
+    }
+
+    /*
     private void DrawGatheredItemsToCheck()
     {
         if (ImGui.BeginTabItem("Locked Items"))
@@ -377,6 +552,114 @@ internal sealed class ConfigWindow : Window
 
             ImGui.EndTabItem();
         }
+    }*/
+
+    private void DrawListSelection(string id, List<Guid> selectedLists)
+    {
+        ImGui.PushID($"##ListSelection{id}");
+
+        List<(Guid Id, string Name, Configuration.ItemList List)> itemLists = new List<Configuration.ItemList>
+            {
+                new Configuration.ItemList
+                {
+                    Id = Guid.Empty,
+                    Name = "---",
+                    Type = Configuration.ListType.CollectOneTime,
+                }
+            }.Concat(_configuration.ItemLists)
+            .Select(x => (x.Id, x.Name, x)).ToList();
+        int? itemToRemove = null;
+        for (int i = 0; i < selectedLists.Count; ++i)
+        {
+
+            ImGui.PushID($"##{id}_Item{i}");
+            var listId = selectedLists[i];
+            var listIndex = itemLists.FindIndex(x => x.Id == listId);
+
+            if (ImGui.Combo("", ref listIndex, itemLists.Select(x => x.Name).ToArray(), itemLists.Count))
+            {
+                selectedLists[i] = itemLists[listIndex].Id;
+                Save();
+            }
+
+            ImGui.SameLine();
+            if (ImGuiComponents.IconButton($"##Jump{i}", FontAwesomeIcon.Edit))
+            {
+
+            }
+
+            ImGui.SameLine();
+            if (ImGuiComponents.IconButton($"##Up{i}", FontAwesomeIcon.ArrowUp))
+            {
+
+            }
+
+            ImGui.SameLine(0, 0);
+            if (ImGuiComponents.IconButton($"##Down{i}", FontAwesomeIcon.ArrowDown))
+            {
+
+            }
+
+            ImGui.SameLine();
+            if (ImGuiComponents.IconButton($"##Remove{i}", FontAwesomeIcon.Times))
+                itemToRemove = i;
+
+            if (listIndex > 0)
+            {
+                if (selectedLists.Take(i).Any(x => x == listId))
+                {
+                    ImGui.Indent(30);
+                    ImGui.TextColored(ImGuiColors.DalamudYellow, "This entry is a duplicate and will be ignored.");
+                    ImGui.Unindent(30);
+                }
+                else
+                {
+                    var list = itemLists[listIndex].List;
+                    ImGui.Indent(30);
+                    ImGui.Text(list.Type == Configuration.ListType.CollectOneTime
+                        ? $"{SeIconChar.LinkMarker.ToIconString()} Items on this list will be collected once."
+                        : $"{SeIconChar.LinkMarker.ToIconString()} Items on this list will be kept in stock on each character.");
+                    ImGui.Spacing();
+                    foreach (var item in list.Items)
+                    {
+                        var venture = _gameCache.Ventures.First(x => x.ItemId == item.ItemId);
+                        ImGui.Text($"{item.RemainingQuantity}x {venture.Name}");
+                    }
+
+                    ImGui.Unindent(30);
+                }
+            }
+
+            ImGui.PopID();
+        }
+
+        if (itemToRemove != null)
+        {
+            selectedLists.RemoveAt(itemToRemove.Value);
+            Save();
+        }
+
+        var unusedLists = itemLists.Where(x => x.Id != Guid.Empty && !selectedLists.Contains(x.Id)).ToList();
+        ImGui.BeginDisabled(unusedLists.Count == 0);
+        if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Plus, "Add Venture List to this Group"))
+            ImGui.OpenPopup($"##AddItem{id}");
+
+        if (ImGui.BeginPopupContextItem($"##AddItem{id}"))
+        {
+            foreach (var list in unusedLists)
+            {
+                if (ImGui.MenuItem($"{list.Name}##{list.Id}"))
+                {
+                    selectedLists.Add(list.Id);
+                    Save();
+                }
+            }
+
+            ImGui.EndPopup();
+        }
+        ImGui.EndDisabled();
+
+        ImGui.PopID();
     }
 
     private void Save()

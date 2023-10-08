@@ -6,7 +6,6 @@ using ARControl.Windows;
 using AutoRetainerAPI;
 using Dalamud.Game.Command;
 using Dalamud.Interface;
-using Dalamud.Interface.Components;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
@@ -41,11 +40,13 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
         _commandManager = commandManager;
         _pluginLog = pluginLog;
 
-        _configuration = (Configuration?)_pluginInterface.GetPluginConfig() ?? new Configuration();
+        _configuration = (Configuration?)_pluginInterface.GetPluginConfig() ?? new Configuration { Version = 2 };
 
         _gameCache = new GameCache(dataManager);
         _ventureResolver = new VentureResolver(_gameCache, _pluginLog);
-        _configWindow = new ConfigWindow(_pluginInterface, _configuration, _gameCache, _clientState, _commandManager, _pluginLog);
+        _configWindow =
+            new ConfigWindow(_pluginInterface, _configuration, _gameCache, _clientState, _commandManager, _pluginLog)
+                { IsOpen = true };
         _windowSystem.AddWindow(_configWindow);
 
         ECommonsMain.Init(_pluginInterface, this);
@@ -72,7 +73,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
         {
             _pluginLog.Information("No character information found");
         }
-        else if (!ch.Managed)
+        else if (ch.Type == Configuration.CharacterType.NotManaged)
         {
             _pluginLog.Information("Character is not managed");
         }
@@ -91,6 +92,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
             {
                 _pluginLog.Information("Checking tasks...");
                 Sync();
+                /* FIXME
                 foreach (var queuedItem in _configuration.QueuedItems.Where(x => x.RemainingQuantity > 0))
                 {
                     _pluginLog.Information($"Checking venture info for itemId {queuedItem.ItemId}");
@@ -115,6 +117,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
                         return;
                     }
                 }
+                */
 
                 // fallback: managed but no venture found
                 if (retainer.LastVenture != 395)
@@ -136,7 +139,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
     {
         Configuration.CharacterConfiguration? characterConfiguration =
             _configuration.Characters.FirstOrDefault(x => x.LocalContentId == characterId);
-        if (characterConfiguration is not { Managed: true })
+        if (characterConfiguration is not { Type: not Configuration.CharacterType.NotManaged })
             return;
 
         Configuration.RetainerConfiguration? retainer =
@@ -145,7 +148,21 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
             return;
 
         ImGui.SameLine();
-        ImGuiComponents.IconButton(FontAwesomeIcon.Book);
+        ImGui.PushFont(UiBuilder.IconFont);
+        ImGui.Text(FontAwesomeIcon.Book.ToIconString());
+        ImGui.PopFont();
+        if (ImGui.IsItemHovered())
+        {
+            string text = "This retainer is managed by ARC.";
+
+            if (characterConfiguration.Type == Configuration.CharacterType.PartOfCharacterGroup)
+            {
+                var group = _configuration.CharacterGroups.Single(x => x.Id == characterConfiguration.CharacterGroupId);
+                text += $"\n\nCharacter Group: {group.Name}";
+            }
+
+            ImGui.SetTooltip(text);
+        }
     }
 
     private void TerritoryChanged(ushort e) => Sync();

@@ -24,7 +24,7 @@ partial class AutoRetainerControlPlugin
                     LocalContentId = registeredCharacterId,
                     CharacterName = offlineCharacterData.Name,
                     WorldName = offlineCharacterData.World,
-                    Managed = false,
+                    Type = Configuration.CharacterType.NotManaged,
                 };
 
                 save = true;
