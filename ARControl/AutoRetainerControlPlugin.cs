@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using ARControl.GameData;
 using ARControl.Windows;
 using AutoRetainerAPI;

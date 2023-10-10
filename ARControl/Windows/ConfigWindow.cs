@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using ARControl.GameData;
-using Dalamud.Game.Text;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
@@ -20,7 +19,7 @@ namespace ARControl.Windows;
 internal sealed class ConfigWindow : Window
 {
     // TODO This should also allow retainers under max level
-    private const byte MaxLevel = 90;
+    private const byte MinLevel = 10;
 
     private static readonly Vector4 ColorGreen = ImGuiColors.HealerGreen;
     private static readonly Vector4 ColorRed = ImGuiColors.DalamudRed;
@@ -499,9 +498,9 @@ internal sealed class ConfigWindow : Window
                             {
                                 foreach (var retainer in character.Retainers.Where(x => x.Job > 0).OrderBy(x => x.DisplayOrder))
                                 {
-                                    ImGui.BeginDisabled(retainer.Level < MaxLevel);
+                                    ImGui.BeginDisabled(retainer.Level < MinLevel);
 
-                                    bool managed = retainer.Managed && retainer.Level == MaxLevel;
+                                    bool managed = retainer.Managed && retainer.Level >= MinLevel;
 
                                     IDalamudTextureWrap? icon = _iconCache.GetIcon(62000 + retainer.Job);
                                     if (icon != null)
