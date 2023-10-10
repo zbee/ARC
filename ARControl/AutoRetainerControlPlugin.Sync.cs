@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 
 namespace ARControl;
 
@@ -37,6 +38,7 @@ partial class AutoRetainerControlPlugin
                 save = true;
             }
 
+            List<string> seenRetainers = new();
             foreach (var retainerData in offlineCharacterData.RetainerData)
             {
                 var retainer = character.Retainers.SingleOrDefault(x => x.Name == retainerData.Name);
@@ -51,6 +53,8 @@ partial class AutoRetainerControlPlugin
                     save = true;
                     character.Retainers.Add(retainer);
                 }
+
+                seenRetainers.Add(retainer.Name);
 
                 if (retainer.DisplayOrder != retainerData.DisplayOrder)
                 {
@@ -67,6 +71,12 @@ partial class AutoRetainerControlPlugin
                 if (retainer.Job != retainerData.Job)
                 {
                     retainer.Job = retainerData.Job;
+                    save = true;
+                }
+
+                if (retainer.HasVenture != retainerData.HasVenture)
+                {
+                    retainer.HasVenture = retainerData.HasVenture;
                     save = true;
                 }
 
@@ -96,6 +106,9 @@ partial class AutoRetainerControlPlugin
                     save = true;
                 }
             }
+
+            if (character.Retainers.RemoveAll(x => !seenRetainers.Contains(x.Name)) > 0)
+                save = true;
         }
 
         if (save)

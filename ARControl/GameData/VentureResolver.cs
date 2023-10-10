@@ -15,18 +15,18 @@ internal sealed class VentureResolver
     }
 
     public (Venture?, VentureReward?) ResolveVenture(Configuration.CharacterConfiguration character,
-        Configuration.RetainerConfiguration retainer, Configuration.QueuedItem queuedItem)
+        Configuration.RetainerConfiguration retainer, uint itemId)
     {
         var venture = _gameCache.Ventures
             .Where(x => retainer.Level >= x.Level)
-            .FirstOrDefault(x => x.ItemId == queuedItem.ItemId && x.MatchesJob(retainer.Job));
+            .FirstOrDefault(x => x.ItemId == itemId && x.MatchesJob(retainer.Job));
         if (venture == null)
         {
-            _pluginLog.Information($"No applicable venture found for itemId {queuedItem.ItemId}");
+            _pluginLog.Information($"No applicable venture found for itemId {itemId}");
             return (null, null);
         }
 
-        var itemToGather = _gameCache.ItemsToGather.FirstOrDefault(x => x.ItemId == queuedItem.ItemId);
+        var itemToGather = _gameCache.ItemsToGather.FirstOrDefault(x => x.ItemId == itemId);
         if (itemToGather != null && !character.GatheredItems.Contains(itemToGather.GatheredItemId))
         {
             _pluginLog.Information($"Character hasn't gathered {venture.Name} yet");
@@ -34,7 +34,7 @@ internal sealed class VentureResolver
         }
 
         _pluginLog.Information(
-            $"Found venture {venture.Name}, row = {venture.RowId}, checking if it is suitable");
+            $"Found venture {venture.Name}, row = {venture.RowId}, checking if we have high enough stats");
         VentureReward? reward = null;
         if (venture.CategoryName is "MIN" or "BTN")
         {

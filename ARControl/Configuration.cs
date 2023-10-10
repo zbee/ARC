@@ -97,6 +97,7 @@ internal sealed class Configuration : IPluginConfiguration
         public int DisplayOrder { get; set; }
         public int Level { get; set; }
         public uint Job { get; set; }
+        public bool HasVenture { get; set; }
         public uint LastVenture { get; set; }
         public int ItemLevel { get; set; }
         public int Gathering { get; set; }
