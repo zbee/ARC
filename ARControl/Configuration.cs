@@ -18,13 +18,20 @@ internal sealed class Configuration : IPluginConfiguration
         public required Guid Id { get; set; }
         public required string Name { get; set; }
         public required ListType Type { get; set; } = ListType.CollectOneTime;
+        public required ListPriority Priority { get; set; } = ListPriority.InOrder;
         public List<QueuedItem> Items { get; set; } = new();
     }
 
     public enum ListType
     {
         CollectOneTime,
-        KeepAlways,
+        KeepStocked,
+    }
+
+    public enum ListPriority
+    {
+        InOrder,
+        Balanced,
     }
 
     public sealed class QueuedItem
@@ -33,7 +40,7 @@ internal sealed class Configuration : IPluginConfiguration
         public required int RemainingQuantity { get; set; }
     }
 
-    public class CharacterGroup
+    public sealed class CharacterGroup
     {
         public required Guid Id { get; set; }
         public required string Name { get; set; }
