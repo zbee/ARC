@@ -7,6 +7,7 @@ using Dalamud.Game.Text;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
+using Dalamud.Interface.Internal;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
@@ -18,6 +19,7 @@ namespace ARControl.Windows;
 
 internal sealed class ConfigWindow : Window
 {
+    // TODO This should also allow retainers under max level
     private const byte MaxLevel = 90;
 
     private static readonly Vector4 ColorGreen = ImGuiColors.HealerGreen;
@@ -31,6 +33,7 @@ internal sealed class ConfigWindow : Window
     private readonly GameCache _gameCache;
     private readonly IClientState _clientState;
     private readonly ICommandManager _commandManager;
+    private readonly IconCache _iconCache;
     private readonly IPluginLog _pluginLog;
 
     private readonly Dictionary<Guid, TemporaryConfig> _currentEditPopups = new();
@@ -51,6 +54,7 @@ internal sealed class ConfigWindow : Window
         GameCache gameCache,
         IClientState clientState,
         ICommandManager commandManager,
+        IconCache iconCache,
         IPluginLog pluginLog)
         : base("ARC###ARControlConfig")
     {
@@ -59,6 +63,7 @@ internal sealed class ConfigWindow : Window
         _gameCache = gameCache;
         _clientState = clientState;
         _commandManager = commandManager;
+        _iconCache = iconCache;
         _pluginLog = pluginLog;
 
         SizeConstraints = new()
@@ -80,7 +85,7 @@ internal sealed class ConfigWindow : Window
         }
     }
 
-    private unsafe void DrawVentureLists()
+    private void DrawVentureLists()
     {
         if (ImGui.BeginTabItem("Venture Lists"))
         {
@@ -102,7 +107,10 @@ internal sealed class ConfigWindow : Window
                 DrawVentureListEditorPopup(list, ref listToDelete);
 
                 ImGui.SameLine();
-                if (ImGui.CollapsingHeader($"{list.Name} {(list.Type == Configuration.ListType.CollectOneTime ? SeIconChar.BoxedNumber1.ToIconChar() : SeIconChar.Circle.ToIconChar())}"))
+
+                string label = $"{list.Name} {list.GetIcon()}";
+
+                if (ImGui.CollapsingHeader(label))
                 {
                     ImGui.Indent(30);
                     DrawVentureListItemSelection(list);
@@ -257,10 +265,10 @@ internal sealed class ConfigWindow : Window
     private void DrawVentureListItemSelection(Configuration.ItemList list)
     {
         ImGuiEx.SetNextItemFullWidth();
-        if (ImGui.BeginCombo($"##VentureSelection{list.Id}", "Add Item..."))
+        if (ImGui.BeginCombo($"##VentureSelection{list.Id}", "Add Venture...", ImGuiComboFlags.HeightLarge))
         {
             ImGuiEx.SetNextItemFullWidth();
-            ImGui.InputTextWithHint("", "Filter...", ref _searchString, 256);
+            ImGui.InputTextWithHint("", "Filter...", ref _searchString, 256, ImGuiInputTextFlags.AutoSelectAll);
 
             foreach (var ventures in _gameCache.Ventures
                          .Where(x => x.Name.ToLower().Contains(_searchString.ToLower()))
@@ -270,6 +278,14 @@ internal sealed class ConfigWindow : Window
                          .GroupBy(x => x.ItemId))
             {
                 var venture = ventures.First();
+                IDalamudTextureWrap? icon = _iconCache.GetIcon(venture.IconId);
+                if (icon != null)
+                {
+                    ImGui.Image(icon.ImGuiHandle, new Vector2(23, 23));
+                    ImGui.SameLine();
+                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 3);
+                }
+
                 if (ImGui.Selectable(
                         $"{venture.Name} ({string.Join(" ", ventures.Select(x => x.CategoryName))})##SelectVenture{venture.RowId}"))
                 {
@@ -278,7 +294,6 @@ internal sealed class ConfigWindow : Window
                         ItemId = venture.ItemId,
                         RemainingQuantity = 0,
                     });
-                    _searchString = string.Empty;
                     Save();
                 }
             }
@@ -286,7 +301,7 @@ internal sealed class ConfigWindow : Window
             ImGui.EndCombo();
         }
 
-        ImGui.Separator();
+        ImGui.Spacing();
 
         Configuration.QueuedItem? itemToRemove = null;
         Configuration.QueuedItem? itemToAdd = null;
@@ -298,6 +313,13 @@ internal sealed class ConfigWindow : Window
             ImGui.PushID($"QueueItem{i}");
             var ventures = _gameCache.Ventures.Where(x => x.ItemId == item.ItemId).ToList();
             var venture = ventures.First();
+
+            IDalamudTextureWrap? icon = _iconCache.GetIcon(venture.IconId);
+            if (icon != null)
+            {
+                ImGui.Image(icon.ImGuiHandle, new Vector2(23, 23));
+                ImGui.SameLine(0, 3);
+            }
 
             ImGui.SetNextItemWidth(130);
             int quantity = item.RemainingQuantity;
@@ -349,6 +371,7 @@ internal sealed class ConfigWindow : Window
 
         if (list.Items.Count > 0 && list.Type == Configuration.ListType.CollectOneTime)
         {
+            ImGui.Spacing();
             ImGui.BeginDisabled(list.Items.All(x => x.RemainingQuantity > 0));
             if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Check, "Remove all finished items"))
             {
@@ -356,8 +379,8 @@ internal sealed class ConfigWindow : Window
                 Save();
             }
             ImGui.EndDisabled();
-            ImGui.Spacing();
         }
+        ImGui.Spacing();
     }
 
     private void DrawCharacters()
@@ -479,8 +502,14 @@ internal sealed class ConfigWindow : Window
                                     ImGui.BeginDisabled(retainer.Level < MaxLevel);
 
                                     bool managed = retainer.Managed && retainer.Level == MaxLevel;
-                                    ImGui.Text(_gameCache.Jobs[retainer.Job]);
-                                    ImGui.SameLine();
+
+                                    IDalamudTextureWrap? icon = _iconCache.GetIcon(62000 + retainer.Job);
+                                    if (icon != null)
+                                    {
+                                        ImGui.Image(icon.ImGuiHandle, new Vector2(23, 23));
+                                        ImGui.SameLine();
+                                    }
+
                                     if (ImGui.Checkbox($"{retainer.Name}###Retainer{retainer.Name}{retainer.DisplayOrder}",
                                             ref managed))
                                     {
@@ -643,7 +672,6 @@ internal sealed class ConfigWindow : Window
                 {
                     Id = Guid.NewGuid(),
                     Name = _newGroup.Name,
-                    Icon = FontAwesomeIcon.None,
                     ItemListIds = new(),
                 });
 
@@ -868,8 +896,8 @@ internal sealed class ConfigWindow : Window
                     var list = itemLists[listIndex].List;
                     ImGui.Indent(30);
                     ImGui.Text(list.Type == Configuration.ListType.CollectOneTime
-                        ? $"{SeIconChar.BoxedNumber1.ToIconString()} Items on this list will be collected once."
-                        : $"{SeIconChar.Circle.ToIconString()} Items on this list will be kept in stock on each character.");
+                        ? $"{list.GetIcon()} Items on this list will be collected once."
+                        : $"{list.GetIcon()} Items on this list will be kept in stock on each character.");
                     ImGui.Spacing();
                     foreach (var item in list.Items)
                     {

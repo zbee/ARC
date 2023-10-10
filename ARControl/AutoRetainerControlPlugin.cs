@@ -27,12 +27,14 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
 
     private readonly Configuration _configuration;
     private readonly GameCache _gameCache;
+    private readonly IconCache _iconCache;
     private readonly VentureResolver _ventureResolver;
     private readonly ConfigWindow _configWindow;
     private readonly AutoRetainerApi _autoRetainerApi;
 
     public AutoRetainerControlPlugin(DalamudPluginInterface pluginInterface, IDataManager dataManager,
-        IClientState clientState, IChatGui chatGui, ICommandManager commandManager, IPluginLog pluginLog)
+        IClientState clientState, IChatGui chatGui, ICommandManager commandManager, ITextureProvider textureProvider,
+        IPluginLog pluginLog)
     {
         _pluginInterface = pluginInterface;
         _clientState = clientState;
@@ -43,9 +45,10 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
         _configuration = (Configuration?)_pluginInterface.GetPluginConfig() ?? new Configuration { Version = 2 };
 
         _gameCache = new GameCache(dataManager);
+        _iconCache = new IconCache(textureProvider);
         _ventureResolver = new VentureResolver(_gameCache, _pluginLog);
         _configWindow =
-            new ConfigWindow(_pluginInterface, _configuration, _gameCache, _clientState, _commandManager, _pluginLog)
+            new ConfigWindow(_pluginInterface, _configuration, _gameCache, _clientState, _commandManager, _iconCache, _pluginLog)
                 { IsOpen = true };
         _windowSystem.AddWindow(_configWindow);
 
@@ -184,6 +187,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
         _pluginInterface.UiBuilder.OpenConfigUi -= _configWindow.Toggle;
         _pluginInterface.UiBuilder.Draw -= _windowSystem.Draw;
 
+        _iconCache.Dispose();
         _autoRetainerApi.Dispose();
         ECommonsMain.Dispose();
     }

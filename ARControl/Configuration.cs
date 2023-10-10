@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Dalamud.Configuration;
+using Dalamud.Game.Text;
 using Dalamud.Interface;
 
 namespace ARControl;
@@ -20,6 +21,17 @@ internal sealed class Configuration : IPluginConfiguration
         public required ListType Type { get; set; } = ListType.CollectOneTime;
         public required ListPriority Priority { get; set; } = ListPriority.InOrder;
         public List<QueuedItem> Items { get; set; } = new();
+
+        public string GetIcon()
+        {
+            return Type switch
+            {
+                ListType.CollectOneTime => SeIconChar.BoxedNumber1.ToIconString(),
+                ListType.KeepStocked when Priority == ListPriority.Balanced => SeIconChar.EurekaLevel.ToIconString(),
+                ListType.KeepStocked => SeIconChar.Circle.ToIconString(),
+                _ => string.Empty
+            };
+        }
     }
 
     public enum ListType
@@ -44,7 +56,6 @@ internal sealed class Configuration : IPluginConfiguration
     {
         public required Guid Id { get; set; }
         public required string Name { get; set; }
-        public required FontAwesomeIcon Icon { get; set; }
         public List<Guid> ItemListIds { get; set; } = new();
     }
 

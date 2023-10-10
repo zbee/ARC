@@ -14,6 +14,7 @@ internal sealed class Venture
         var taskDetails = dataManager.GetExcelSheet<RetainerTaskNormal>()!.GetRow(retainerTask.Task)!;
         var taskParameters = retainerTask.RetainerTaskParameter.Value!;
         ItemId = taskDetails.Item.Row;
+        IconId = taskDetails.Item.Value!.Icon;
         Name = taskDetails.Item.Value!.Name.ToString();
         Level = retainerTask.RetainerLevel;
         ItemLevelCombat = retainerTask.RequiredItemLevel;
@@ -76,6 +77,7 @@ internal sealed class Venture
     }
 
     public uint ItemId { get; }
+    public ushort IconId { get; }
     public string Name { get; }
     public byte Level { get; }
     public ushort ItemLevelCombat { get; }
