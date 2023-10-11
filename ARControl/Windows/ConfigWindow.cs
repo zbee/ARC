@@ -13,6 +13,7 @@ using Dalamud.Plugin.Services;
 using ECommons;
 using ECommons.ImGuiMethods;
 using ImGuiNET;
+using LLib;
 
 namespace ARControl.Windows;
 
@@ -74,6 +75,8 @@ internal sealed class ConfigWindow : Window
 
     public override void Draw()
     {
+        LImGui.AddPatreonIcon(_pluginInterface);
+
         if (ImGui.BeginTabBar("ARConfigTabs"))
         {
             DrawVentureLists();

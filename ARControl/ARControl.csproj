@@ -24,6 +24,10 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\LLib\LLib.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
         <PackageReference Include="DalamudPackager" Version="2.1.12"/>
     </ItemGroup>
 
