@@ -316,9 +316,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
             return;
 
         ImGui.SameLine();
-        ImGui.PushFont(UiBuilder.IconFont);
-        ImGui.Text(FontAwesomeIcon.Book.ToIconString());
-        ImGui.PopFont();
+        ImGui.Text(SeIconChar.Collectible.ToIconString());
         if (ImGui.IsItemHovered())
         {
             string text = "This retainer is managed by ARC.";
