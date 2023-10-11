@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <TargetFramework>net7.0-windows</TargetFramework>
-        <Version>1.0</Version>
+        <Version>2.0</Version>
         <LangVersion>11.0</LangVersion>
         <Nullable>enable</Nullable>
         <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
@@ -16,12 +16,16 @@
 
     <PropertyGroup>
         <DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
-        <AutoRetainerLibPath>$(appdata)\XIVLauncher\installedPlugins\AutoRetainer\4.2.0.6\</AutoRetainerLibPath>
+        <AutoRetainerLibPath>$(appdata)\XIVLauncher\installedPlugins\AutoRetainer\4.2.1.0\</AutoRetainerLibPath>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux)))'">
         <DalamudLibPath>$(DALAMUD_HOME)/</DalamudLibPath>
     </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\LLib\LLib.csproj"/>
+    </ItemGroup>
 
     <ItemGroup>
         <PackageReference Include="DalamudPackager" Version="2.1.12"/>
@@ -48,6 +52,10 @@
             <HintPath>$(DalamudLibPath)Newtonsoft.Json.dll</HintPath>
             <Private>false</Private>
         </Reference>
+        <Reference Include="FFXIVClientStructs">
+            <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
         <Reference Include="AutoRetainerAPI">
             <HintPath>$(AutoRetainerLibPath)AutoRetainerAPI.dll</HintPath>
         </Reference>
@@ -55,7 +63,6 @@
             <HintPath>$(AutoRetainerLibPath)ECommons.dll</HintPath>
         </Reference>
     </ItemGroup>
-
 
 
     <Target Name="RenameLatestZip" AfterTargets="PackagePlugin">
