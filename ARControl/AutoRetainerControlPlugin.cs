@@ -6,6 +6,9 @@ using ARControl.GameData;
 using ARControl.Windows;
 using AutoRetainerAPI;
 using Dalamud.Game.Command;
+using Dalamud.Game.Text;
+using Dalamud.Game.Text.SeStringHandling;
+using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Interface;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
@@ -51,7 +54,8 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
         _iconCache = new IconCache(textureProvider);
         _ventureResolver = new VentureResolver(_gameCache, _pluginLog);
         _configWindow =
-            new ConfigWindow(_pluginInterface, _configuration, _gameCache, _clientState, _commandManager, _iconCache, _pluginLog)
+            new ConfigWindow(_pluginInterface, _configuration, _gameCache, _clientState, _commandManager, _iconCache,
+                    _pluginLog)
                 { IsOpen = true };
         _windowSystem.AddWindow(_configWindow);
 
@@ -161,7 +165,9 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
                     {
                         QueuedItem = x,
                         InventoryCount = inventoryManager->GetInventoryItemCount(x.ItemId) +
-                                         (venturesInProgress.TryGetValue(x.ItemId, out int inProgress) ? inProgress : 0),
+                                         (venturesInProgress.TryGetValue(x.ItemId, out int inProgress)
+                                             ? inProgress
+                                             : 0),
                     })
                     .Where(x => x.InventoryCount <= x.RequestedCount)
                     .ToList()
@@ -188,7 +194,25 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
                 else
                 {
                     _chatGui.Print(
-                        $"[ARC] Sending retainer {retainerName} to collect {reward.Quantity}x {venture.Name}.");
+                        new SeString(new UIForegroundPayload(579))
+                            .Append(SeIconChar.Collectible.ToIconString())
+                            .Append(new UIForegroundPayload(0))
+                            .Append($" Sending retainer ")
+                            .Append(new UIForegroundPayload(1))
+                            .Append(retainerName)
+                            .Append(new UIForegroundPayload(0))
+                            .Append(" to collect ")
+                            .Append(new UIForegroundPayload(1))
+                            .Append($"{reward.Quantity}x ")
+                            .Append(new ItemPayload(venture.ItemId))
+                            .Append(venture.Name)
+                            .Append(RawPayload.LinkTerminator)
+                            .Append(new UIForegroundPayload(0))
+                            .Append(" for ")
+                            .Append(new UIForegroundPayload(1))
+                            .Append($"{list.Name} {list.GetIcon()}")
+                            .Append(new UIForegroundPayload(0))
+                            .Append("."));
                     _pluginLog.Information(
                         $"Setting AR to use venture {venture.RowId}, which should retrieve {reward.Quantity}x {venture.Name}");
 
@@ -209,13 +233,24 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
                     return venture.RowId;
                 }
             }
-
         }
 
         // fallback: managed but no venture found
         if (retainer.LastVenture != QuickVentureId)
         {
-            _chatGui.Print($"[ARC] No tasks left for retainer {retainerName}, sending to Quick Venture.");
+            _chatGui.Print(
+                new SeString(new UIForegroundPayload(579))
+                    .Append(SeIconChar.Collectible.ToIconString())
+                    .Append(new UIForegroundPayload(0))
+                    .Append($" No tasks left for retainer ")
+                    .Append(new UIForegroundPayload(1))
+                    .Append(retainerName)
+                    .Append(new UIForegroundPayload(0))
+                    .Append(", sending to ")
+                    .Append(new UIForegroundPayload(1))
+                    .Append("Quick Venture")
+                    .Append(new UIForegroundPayload(0))
+                    .Append("."));
             _pluginLog.Information($"No tasks left (previous venture = {retainer.LastVenture}), using QC");
 
             if (!dryRun)
@@ -318,7 +353,8 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
             if (venture == QuickVentureId)
                 _chatGui.Print($"Next venture for {retainerName} is Quick Venture.");
             else if (venture.HasValue)
-                _chatGui.Print($"Next venture for {retainerName} is {_gameCache.Ventures.First(x => x.RowId == venture.Value).Name}.");
+                _chatGui.Print(
+                    $"Next venture for {retainerName} is {_gameCache.Ventures.First(x => x.RowId == venture.Value).Name}.");
             else
                 _chatGui.Print($"Next venture for {retainerName} is (none).");
         }
@@ -345,6 +381,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
         public required Configuration.QueuedItem QueuedItem { get; set; }
         public required int InventoryCount { get; set; }
         public uint ItemId => QueuedItem.ItemId;
+
         public int RequestedCount
         {
             get => QueuedItem.RemainingQuantity;

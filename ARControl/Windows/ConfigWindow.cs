@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using ARControl.GameData;
+using Dalamud.Game.Text;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
@@ -26,7 +27,9 @@ internal sealed class ConfigWindow : Window
     private static readonly Vector4 ColorRed = ImGuiColors.DalamudRed;
     private static readonly Vector4 ColorGrey = ImGuiColors.DalamudGrey;
     private static readonly string[] StockingTypeLabels = { "Collect Once", "Keep in Stock" };
-    private static readonly string[] PriorityLabels = { "Collect in order of the list", "Collect item with lowest inventory first" };
+
+    private static readonly string[] PriorityLabels =
+        { "Collect in order of the list", "Collect item with lowest inventory first" };
 
     private readonly DalamudPluginInterface _pluginInterface;
     private readonly Configuration _configuration;
@@ -39,12 +42,14 @@ internal sealed class ConfigWindow : Window
     private readonly Dictionary<Guid, TemporaryConfig> _currentEditPopups = new();
     private string _searchString = string.Empty;
     private TemporaryConfig _newGroup = new() { Name = string.Empty };
+
     private TemporaryConfig _newList = new()
     {
         Name = string.Empty,
         ListType = Configuration.ListType.CollectOneTime,
         ListPriority = Configuration.ListPriority.InOrder
     };
+
     private bool _checkPerCharacter = true;
     private bool _onlyShowMissing = true;
 
@@ -56,7 +61,7 @@ internal sealed class ConfigWindow : Window
         ICommandManager commandManager,
         IconCache iconCache,
         IPluginLog pluginLog)
-        : base("ARC###ARControlConfig")
+        : base($"ARC {SeIconChar.Collectible.ToIconString()}###ARControlConfig")
     {
         _pluginInterface = pluginInterface;
         _configuration = configuration;
@@ -106,6 +111,7 @@ internal sealed class ConfigWindow : Window
                     };
                     ImGui.OpenPopup($"##EditList{list.Id}");
                 }
+
                 DrawVentureListEditorPopup(list, ref listToDelete);
 
                 ImGui.SameLine();
@@ -118,6 +124,7 @@ internal sealed class ConfigWindow : Window
                     DrawVentureListItemSelection(list);
                     ImGui.Unindent(30);
                 }
+
                 ImGui.PopID();
             }
 
@@ -233,7 +240,8 @@ internal sealed class ConfigWindow : Window
         }
     }
 
-    private (bool Save, bool CanSave) DrawVentureListEditor(TemporaryConfig temporaryConfig, Configuration.ItemList? list)
+    private (bool Save, bool CanSave) DrawVentureListEditor(TemporaryConfig temporaryConfig,
+        Configuration.ItemList? list)
     {
         string listName = temporaryConfig.Name;
         bool save = ImGui.InputTextWithHint("", "List Name...", ref listName, 64,
@@ -339,6 +347,7 @@ internal sealed class ConfigWindow : Window
                 itemToAdd = item;
                 indexToAdd = i - 1;
             }
+
             ImGui.EndDisabled();
 
             ImGui.SameLine(0, 0);
@@ -348,6 +357,7 @@ internal sealed class ConfigWindow : Window
                 itemToAdd = item;
                 indexToAdd = i + 1;
             }
+
             ImGui.EndDisabled();
 
             ImGui.SameLine();
@@ -380,8 +390,10 @@ internal sealed class ConfigWindow : Window
                 list.Items.RemoveAll(q => q.RemainingQuantity <= 0);
                 Save();
             }
+
             ImGui.EndDisabled();
         }
+
         ImGui.Spacing();
     }
 
@@ -443,7 +455,8 @@ internal sealed class ConfigWindow : Window
 
                         if (ImGui.BeginTabBar("CharOptions"))
                         {
-                            if (character.Type != Configuration.CharacterType.NotManaged && ImGui.BeginTabItem("Venture Lists"))
+                            if (character.Type != Configuration.CharacterType.NotManaged &&
+                                ImGui.BeginTabItem("Venture Lists"))
                             {
                                 int groupIndex = 0;
                                 if (character.Type == Configuration.CharacterType.PartOfCharacterGroup)
@@ -461,6 +474,7 @@ internal sealed class ConfigWindow : Window
                                         character.Type = Configuration.CharacterType.PartOfCharacterGroup;
                                         character.CharacterGroupId = groups[groupIndex].Id;
                                     }
+
                                     Save();
                                 }
 
@@ -470,14 +484,16 @@ internal sealed class ConfigWindow : Window
                                     // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
                                     if (character.ItemListIds == null)
                                         character.ItemListIds = new();
-                                    DrawVentureListSelection(character.LocalContentId.ToString(), character.ItemListIds);
+                                    DrawVentureListSelection(character.LocalContentId.ToString(),
+                                        character.ItemListIds);
                                 }
                                 else
                                 {
                                     ImGui.TextWrapped($"Retainers will participate in the following lists:");
                                     ImGui.Indent(30);
 
-                                    var group = _configuration.CharacterGroups.Single(x => x.Id == groups[groupIndex].Id);
+                                    var group = _configuration.CharacterGroups.Single(
+                                        x => x.Id == groups[groupIndex].Id);
                                     var lists = group.ItemListIds
                                         .Where(listId => listId != Guid.Empty)
                                         .Select(listId => _configuration.ItemLists.SingleOrDefault(x => x.Id == listId))
@@ -495,11 +511,14 @@ internal sealed class ConfigWindow : Window
                                     ImGui.Unindent(30);
                                     ImGui.Spacing();
                                 }
+
                                 ImGui.EndTabItem();
                             }
+
                             if (ImGui.BeginTabItem("Retainers"))
                             {
-                                foreach (var retainer in character.Retainers.Where(x => x.Job > 0).OrderBy(x => x.DisplayOrder))
+                                foreach (var retainer in character.Retainers.Where(x => x.Job > 0)
+                                             .OrderBy(x => x.DisplayOrder))
                                 {
                                     ImGui.BeginDisabled(retainer.Level < MinLevel);
 
@@ -512,7 +531,8 @@ internal sealed class ConfigWindow : Window
                                         ImGui.SameLine();
                                     }
 
-                                    if (ImGui.Checkbox($"{retainer.Name}###Retainer{retainer.Name}{retainer.DisplayOrder}",
+                                    if (ImGui.Checkbox(
+                                            $"{retainer.Name}###Retainer{retainer.Name}{retainer.DisplayOrder}",
                                             ref managed))
                                     {
                                         retainer.Managed = managed;
@@ -521,8 +541,10 @@ internal sealed class ConfigWindow : Window
 
                                     ImGui.EndDisabled();
                                 }
+
                                 ImGui.EndTabItem();
                             }
+
                             ImGui.EndTabBar();
                         }
 
@@ -575,7 +597,9 @@ internal sealed class ConfigWindow : Window
         }
     }
 
-    private void DrawCharacterGroupEditorPopup(Configuration.CharacterGroup group, out List<Configuration.CharacterConfiguration> assignedCharacters, ref Configuration.CharacterGroup? groupToDelete)
+    private void DrawCharacterGroupEditorPopup(Configuration.CharacterGroup group,
+        out List<Configuration.CharacterConfiguration> assignedCharacters,
+        ref Configuration.CharacterGroup? groupToDelete)
     {
         assignedCharacters = _configuration.Characters
             .Where(x => x.Type == Configuration.CharacterType.PartOfCharacterGroup &&
@@ -583,7 +607,8 @@ internal sealed class ConfigWindow : Window
             .OrderBy(x => x.WorldName)
             .ThenBy(x => x.LocalContentId)
             .ToList();
-        if (_currentEditPopups.TryGetValue(group.Id, out TemporaryConfig? temporaryConfig) && ImGui.BeginPopup($"##EditGroup{group.Id}"))
+        if (_currentEditPopups.TryGetValue(group.Id, out TemporaryConfig? temporaryConfig) &&
+            ImGui.BeginPopup($"##EditGroup{group.Id}"))
         {
             (bool save, bool canSave) = DrawGroupEditor(temporaryConfig, group);
 
@@ -607,6 +632,7 @@ internal sealed class ConfigWindow : Window
                     groupToDelete = group;
                     ImGui.CloseCurrentPopup();
                 }
+
                 ImGui.EndDisabled();
                 if (assignedCharacters.Count > 0 && ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
                 {
@@ -618,11 +644,13 @@ internal sealed class ConfigWindow : Window
                     ImGui.EndTooltip();
                 }
             }
+
             ImGui.EndPopup();
         }
     }
 
-    private void DrawCharacterGroup(Configuration.CharacterGroup group, List<Configuration.CharacterConfiguration> assignedCharacters)
+    private void DrawCharacterGroup(Configuration.CharacterGroup group,
+        List<Configuration.CharacterConfiguration> assignedCharacters)
     {
         string countLabel = assignedCharacters.Count == 0 ? "no characters"
             : assignedCharacters.Count == 1 ? "1 character"
@@ -687,7 +715,8 @@ internal sealed class ConfigWindow : Window
         }
     }
 
-    private (bool Save, bool CanSave) DrawGroupEditor(TemporaryConfig group, Configuration.CharacterGroup? existingGroup)
+    private (bool Save, bool CanSave) DrawGroupEditor(TemporaryConfig group,
+        Configuration.CharacterGroup? existingGroup)
     {
         string name = group.Name;
         bool save = ImGui.InputTextWithHint("", "Group Name...", ref name, 64, ImGuiInputTextFlags.EnterReturnsTrue);
@@ -870,6 +899,7 @@ internal sealed class ConfigWindow : Window
                 itemToAdd = i;
                 indexToAdd = i - 1;
             }
+
             ImGui.EndDisabled();
 
             ImGui.SameLine(0, 0);
@@ -879,6 +909,7 @@ internal sealed class ConfigWindow : Window
                 itemToAdd = i;
                 indexToAdd = i + 1;
             }
+
             ImGui.EndDisabled();
 
             ImGui.SameLine();
@@ -946,6 +977,7 @@ internal sealed class ConfigWindow : Window
 
             ImGui.EndPopup();
         }
+
         ImGui.EndDisabled();
 
         ImGui.PopID();
