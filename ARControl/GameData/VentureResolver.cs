@@ -22,7 +22,7 @@ internal sealed class VentureResolver
             .FirstOrDefault(x => x.ItemId == itemId && x.MatchesJob(retainer.Job));
         if (venture == null)
         {
-            _pluginLog.Information($"No applicable venture found for itemId {itemId}");
+            _pluginLog.Debug($"No applicable venture found for itemId {itemId} as {retainer.Job}");
             return (null, null);
         }
 
@@ -33,7 +33,7 @@ internal sealed class VentureResolver
             return (null, null);
         }
 
-        _pluginLog.Information(
+        _pluginLog.Debug(
             $"Found venture {venture.Name}, row = {venture.RowId}, checking if we have high enough stats");
         VentureReward? reward = null;
         if (venture.CategoryName is "MIN" or "BTN")

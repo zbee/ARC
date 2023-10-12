@@ -55,8 +55,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
         _ventureResolver = new VentureResolver(_gameCache, _pluginLog);
         _configWindow =
             new ConfigWindow(_pluginInterface, _configuration, _gameCache, _clientState, _commandManager, _iconCache,
-                    _pluginLog)
-                { IsOpen = true };
+                    _pluginLog);
         _windowSystem.AddWindow(_configWindow);
 
         ECommonsMain.Init(_pluginInterface, this);
@@ -118,7 +117,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
         var venturesInProgress = CalculateVenturesInProgress(ch);
         foreach (var inpr in venturesInProgress)
         {
-            _pluginLog.Information($"In Progress: {inpr.Key} → {inpr.Value}");
+            _pluginLog.Verbose($"Venture In Progress: ItemId {inpr.Key} for a total amount of {inpr.Value}");
         }
 
         IReadOnlyList<Guid> itemListIds;
@@ -178,18 +177,23 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
                     itemsOnList = itemsOnList.OrderBy(x => x.InventoryCount).ToList().AsReadOnly();
             }
 
-            _pluginLog.Information($"Found {itemsOnList.Count} items on current list");
+            _pluginLog.Debug($"Found {itemsOnList.Count} to-do items on current list");
             if (itemsOnList.Count == 0)
                 continue;
 
             foreach (var itemOnList in itemsOnList)
             {
-                _pluginLog.Information($"Checking venture info for itemId {itemOnList.ItemId}");
+                _pluginLog.Debug($"Checking venture info for itemId {itemOnList.ItemId}");
 
                 var (venture, reward) = _ventureResolver.ResolveVenture(ch, retainer, itemOnList.ItemId);
-                if (venture == null || reward == null)
+                if (venture == null)
                 {
-                    _pluginLog.Information($"Retainer can't complete venture '{venture?.Name}'");
+                    venture = _gameCache.Ventures.FirstOrDefault(x => x.ItemId == itemOnList.ItemId);
+                    _pluginLog.Debug($"Retainer doesn't know how to gather itemId {itemOnList.ItemId} ({venture?.Name})");
+                }
+                else if (reward == null)
+                {
+                    _pluginLog.Debug($"Retainer can't complete venture '{venture.Name}'");
                 }
                 else
                 {
@@ -235,7 +239,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
             }
         }
 
-        // fallback: managed but no venture found
+        // fallback: managed but no venture found/
         if (retainer.LastVenture != QuickVentureId)
         {
             _chatGui.Print(
@@ -251,7 +255,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
                     .Append("Quick Venture")
                     .Append(new UIForegroundPayload(0))
                     .Append("."));
-            _pluginLog.Information($"No tasks left (previous venture = {retainer.LastVenture}), using QC");
+            _pluginLog.Information($"No tasks left (previous venture = {retainer.LastVenture}), using QV");
 
             if (!dryRun)
             {
@@ -337,7 +341,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
     {
         if (arguments == "sync")
             Sync();
-        else if (arguments == "d")
+        else if (arguments.StartsWith("dnv"))
         {
             var ch = _configuration.Characters.SingleOrDefault(x => x.LocalContentId == _clientState.LocalContentId);
             if (ch == null || ch.Type == Configuration.CharacterType.NotManaged || ch.Retainers.Count == 0)
@@ -346,7 +350,22 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
                 return;
             }
 
-            string retainerName = ch.Retainers.OrderBy(x => x.DisplayOrder).First().Name;
+            string[] s = arguments.Split(" ");
+            string? retainerName;
+            if (s.Length > 1)
+                retainerName = ch.Retainers.SingleOrDefault(x => x.Name.EqualsIgnoreCase(s[1]))?.Name;
+            else
+                retainerName = ch.Retainers.MinBy(x => x.DisplayOrder)?.Name;
+
+            if (retainerName == null)
+            {
+                if (s.Length > 1)
+                    _chatGui.PrintError($"Could not find retainer {s[1]}.");
+                else
+                    _chatGui.PrintError("Could not find retainer.");
+                return;
+            }
+
             var venture = GetNextVenture(retainerName, true);
             if (venture == QuickVentureId)
                 _chatGui.Print($"Next venture for {retainerName} is Quick Venture.");
