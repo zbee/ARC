@@ -78,9 +78,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
     private void SendRetainerToVenture(string retainerName)
     {
         var venture = GetNextVenture(retainerName, false);
-        if (venture == QuickVentureId)
-            _autoRetainerApi.SetVenture(0);
-        else if (venture.HasValue)
+        if (venture.HasValue)
             _autoRetainerApi.SetVenture(venture.Value);
     }
 
@@ -264,6 +262,13 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
                 _pluginInterface.SavePluginConfig(_configuration);
             }
 
+            // Unsure if this (eventually) will do venture plans you've configured in AutoRetainer, but by default
+            // (with Assign + Reassign) as config options, returning `0` here as suggested in
+            // https://discord.com/channels/1001823907193552978/1001825038598676530/1161295221447983226
+            // will just repeat the last venture.
+            //
+            // That makes sense, of course, but it's also not really the desired behaviour for when you're at the end
+            // of a list.
             return QuickVentureId;
         }
         else
