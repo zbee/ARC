@@ -12,6 +12,7 @@ internal sealed class Configuration : IPluginConfiguration
     public List<CharacterConfiguration> Characters { get; set; } = new();
     public List<ItemList> ItemLists { get; set; } = new();
     public List<CharacterGroup> CharacterGroups { get; set; } = new();
+    public ConfigWindowUiOptions ConfigUiOptions { get; set; } = new();
 
     public sealed class ItemList
     {
@@ -23,6 +24,9 @@ internal sealed class Configuration : IPluginConfiguration
 
         public string GetIcon()
         {
+            if (Id == Guid.Empty)
+                return string.Empty;
+
             return Type switch
             {
                 ListType.CollectOneTime => SeIconChar.BoxedNumber1.ToIconString(),
@@ -101,5 +105,13 @@ internal sealed class Configuration : IPluginConfiguration
         public int ItemLevel { get; set; }
         public int Gathering { get; set; }
         public int Perception { get; set; }
+    }
+
+    public sealed class ConfigWindowUiOptions
+    {
+        public bool ShowVentureListContents { get; set; } = true;
+        public bool CheckGatheredItemsPerCharacter { get; set; }
+        public bool OnlyShowMissingGatheredItems { get; set; }
+        public bool WrapAroundWhenReordering { get; set; }
     }
 }

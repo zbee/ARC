@@ -50,9 +50,6 @@ internal sealed class ConfigWindow : Window
         ListPriority = Configuration.ListPriority.InOrder
     };
 
-    private bool _checkPerCharacter = true;
-    private bool _onlyShowMissing = true;
-
     public ConfigWindow(
         DalamudPluginInterface pluginInterface,
         Configuration configuration,
@@ -88,6 +85,7 @@ internal sealed class ConfigWindow : Window
             DrawCharacterGroups();
             DrawCharacters();
             DrawGatheredItemsToCheck();
+            DrawUiTab();
             ImGui.EndTabBar();
         }
     }
@@ -340,27 +338,39 @@ internal sealed class ConfigWindow : Window
                 Save();
             }
 
-            ImGui.SameLine(windowX - 30);
-            ImGui.BeginDisabled(i == 0);
-            if (ImGuiComponents.IconButton($"##Up{i}", FontAwesomeIcon.ArrowUp))
+            if (list.Items.Count > 1)
             {
-                itemToAdd = item;
-                indexToAdd = i - 1;
+                bool wrap = _configuration.ConfigUiOptions.WrapAroundWhenReordering;
+
+                ImGui.SameLine(windowX - 31);
+                ImGui.BeginDisabled(i == 0 && !wrap);
+                if (ImGuiComponents.IconButton($"##Up{i}", FontAwesomeIcon.ArrowUp))
+                {
+                    itemToAdd = item;
+                    if (i > 0)
+                        indexToAdd = i - 1;
+                    else
+                        indexToAdd = list.Items.Count - 1;
+                }
+
+                ImGui.EndDisabled();
+
+                ImGui.SameLine(0, 0);
+                ImGui.BeginDisabled(i == list.Items.Count - 1 && !wrap);
+                if (ImGuiComponents.IconButton($"##Down{i}", FontAwesomeIcon.ArrowDown))
+                {
+                    itemToAdd = item;
+                    if (i < list.Items.Count - 1)
+                        indexToAdd = i + 1;
+                    else
+                        indexToAdd = 0;
+                }
+                ImGui.EndDisabled();
+                ImGui.SameLine();
             }
+            else
+                ImGui.SameLine(windowX + 19);
 
-            ImGui.EndDisabled();
-
-            ImGui.SameLine(0, 0);
-            ImGui.BeginDisabled(i == list.Items.Count - 1);
-            if (ImGuiComponents.IconButton($"##Down{i}", FontAwesomeIcon.ArrowDown))
-            {
-                itemToAdd = item;
-                indexToAdd = i + 1;
-            }
-
-            ImGui.EndDisabled();
-
-            ImGui.SameLine();
             if (ImGuiComponents.IconButton($"##Remove{i}", FontAwesomeIcon.Times))
                 itemToRemove = item;
 
@@ -744,8 +754,20 @@ internal sealed class ConfigWindow : Window
     {
         if (ImGui.BeginTabItem("Locked Items"))
         {
-            ImGui.Checkbox("Group by character", ref _checkPerCharacter);
-            ImGui.Checkbox("Only show missing items", ref _onlyShowMissing);
+            bool checkPerCharacter = _configuration.ConfigUiOptions.CheckGatheredItemsPerCharacter;
+            if (ImGui.Checkbox("Group by character", ref checkPerCharacter))
+            {
+                _configuration.ConfigUiOptions.CheckGatheredItemsPerCharacter = checkPerCharacter;
+                Save();
+            }
+
+            bool onlyShowMissing = _configuration.ConfigUiOptions.OnlyShowMissingGatheredItems;
+            if (ImGui.Checkbox("Only show missing items", ref onlyShowMissing))
+            {
+                _configuration.ConfigUiOptions.OnlyShowMissingGatheredItems = onlyShowMissing;
+                Save();
+            }
+
             ImGui.Separator();
 
             var itemsToCheck =
@@ -774,9 +796,9 @@ internal sealed class ConfigWindow : Window
                 .Select(x => new CheckedCharacter(_configuration, x, itemsToCheck))
                 .ToList();
 
-            if (_checkPerCharacter)
+            if (checkPerCharacter)
             {
-                foreach (var ch in charactersToCheck.Where(x => x.ToCheck(_onlyShowMissing).Any()))
+                foreach (var ch in charactersToCheck.Where(x => x.ToCheck(onlyShowMissing).Any()))
                 {
                     bool currentCharacter = _clientState.LocalContentId == ch.Character.LocalContentId;
                     ImGui.BeginDisabled(currentCharacter);
@@ -801,7 +823,7 @@ internal sealed class ConfigWindow : Window
                     {
                         ImGui.Indent(30);
                         foreach (var item in itemsToCheck.Where(x =>
-                                     ch.ToCheck(_onlyShowMissing).ContainsKey(x.ItemId)))
+                                     ch.ToCheck(onlyShowMissing).ContainsKey(x.ItemId)))
                         {
                             var color = ch.Items[item.ItemId];
                             if (color != ColorGrey)
@@ -839,7 +861,7 @@ internal sealed class ConfigWindow : Window
             else
             {
                 foreach (var item in itemsToCheck.Where(x =>
-                             charactersToCheck.Any(y => y.ToCheck(_onlyShowMissing).ContainsKey(x.ItemId))))
+                             charactersToCheck.Any(y => y.ToCheck(onlyShowMissing).ContainsKey(x.ItemId))))
                 {
                     if (ImGui.CollapsingHeader($"{item.GatheredItem.Name}##Gathered{item.GatheredItem.ItemId}"))
                     {
@@ -847,7 +869,7 @@ internal sealed class ConfigWindow : Window
                         foreach (var ch in charactersToCheck)
                         {
                             var color = ch.Items[item.ItemId];
-                            if (color == ColorRed || (color == ColorGreen && !_onlyShowMissing))
+                            if (color == ColorRed || (color == ColorGreen && !onlyShowMissing))
                                 ImGui.TextColored(color, ch.Character.ToString());
                         }
 
@@ -866,7 +888,7 @@ internal sealed class ConfigWindow : Window
 
         List<(Guid Id, string Name, Configuration.ItemList List)> itemLists = new List<Configuration.ItemList>
             {
-                new Configuration.ItemList
+                new()
                 {
                     Id = Guid.Empty,
                     Name = "---",
@@ -874,7 +896,7 @@ internal sealed class ConfigWindow : Window
                     Priority = Configuration.ListPriority.InOrder,
                 }
             }.Concat(_configuration.ItemLists)
-            .Select(x => (x.Id, x.Name, x)).ToList();
+            .Select(x => (x.Id, $"{x.Name} {x.GetIcon()}".TrimEnd(), x)).ToList();
         int? itemToRemove = null;
         int? itemToAdd = null;
         int indexToAdd = 0;
@@ -892,27 +914,42 @@ internal sealed class ConfigWindow : Window
                 Save();
             }
 
-            ImGui.SameLine();
-            ImGui.BeginDisabled(i == 0);
-            if (ImGuiComponents.IconButton($"##Up{i}", FontAwesomeIcon.ArrowUp))
+            if (selectedLists.Count > 1)
             {
-                itemToAdd = i;
-                indexToAdd = i - 1;
+                bool wrap = _configuration.ConfigUiOptions.WrapAroundWhenReordering;
+
+                ImGui.SameLine();
+                ImGui.BeginDisabled(i == 0 && !wrap);
+                if (ImGuiComponents.IconButton($"##Up{i}", FontAwesomeIcon.ArrowUp))
+                {
+                    itemToAdd = i;
+                    if (i > 0)
+                        indexToAdd = i - 1;
+                    else
+                        indexToAdd = selectedLists.Count - 1;
+                }
+
+                ImGui.EndDisabled();
+
+                ImGui.SameLine(0, 0);
+                ImGui.BeginDisabled(i == selectedLists.Count - 1 && !wrap);
+                if (ImGuiComponents.IconButton($"##Down{i}", FontAwesomeIcon.ArrowDown))
+                {
+                    itemToAdd = i;
+                    if (i < selectedLists.Count - 1)
+                        indexToAdd = i + 1;
+                    else
+                        indexToAdd = 0;
+                }
+
+                ImGui.EndDisabled();
+                ImGui.SameLine();
+            }
+            else
+            {
+                ImGui.SameLine(0, 58);
             }
 
-            ImGui.EndDisabled();
-
-            ImGui.SameLine(0, 0);
-            ImGui.BeginDisabled(i == selectedLists.Count - 1);
-            if (ImGuiComponents.IconButton($"##Down{i}", FontAwesomeIcon.ArrowDown))
-            {
-                itemToAdd = i;
-                indexToAdd = i + 1;
-            }
-
-            ImGui.EndDisabled();
-
-            ImGui.SameLine();
             if (ImGuiComponents.IconButton($"##Remove{i}", FontAwesomeIcon.Times))
                 itemToRemove = i;
 
@@ -924,13 +961,13 @@ internal sealed class ConfigWindow : Window
                     ImGui.TextColored(ImGuiColors.DalamudYellow, "This entry is a duplicate and will be ignored.");
                     ImGui.Unindent(30);
                 }
-                else
+                else if (_configuration.ConfigUiOptions.ShowVentureListContents)
                 {
                     var list = itemLists[listIndex].List;
                     ImGui.Indent(30);
                     ImGui.Text(list.Type == Configuration.ListType.CollectOneTime
-                        ? $"{list.GetIcon()} Items on this list will be collected once."
-                        : $"{list.GetIcon()} Items on this list will be kept in stock on each character.");
+                        ? "Items on this list will be collected once."
+                        : "Items on this list will be kept in stock on each character.");
                     ImGui.Spacing();
                     foreach (var item in list.Items)
                     {
@@ -981,6 +1018,29 @@ internal sealed class ConfigWindow : Window
         ImGui.EndDisabled();
 
         ImGui.PopID();
+    }
+
+    private void DrawUiTab()
+    {
+        if (ImGui.BeginTabItem("UI"))
+        {
+            bool showContents = _configuration.ConfigUiOptions.ShowVentureListContents;
+            if (ImGui.Checkbox("Show Venture List preview in Groups/Retainer tabs", ref showContents))
+            {
+                _configuration.ConfigUiOptions.ShowVentureListContents = showContents;
+                Save();
+            }
+
+            bool wrapAroundWhenReordering = _configuration.ConfigUiOptions.WrapAroundWhenReordering;
+            if (ImGui.Checkbox("Allow sorting with up/down arrows to wrap around", ref wrapAroundWhenReordering))
+            {
+                _configuration.ConfigUiOptions.WrapAroundWhenReordering = wrapAroundWhenReordering;
+                Save();
+            }
+            ImGuiComponents.HelpMarker("When enabled:\n- Clicking the Up-Arrow for the first item in a list, that item will be moved to the bottom.\n- Clicking the Down-Arrow for the last item in the list, that item will be moved to the top.");
+
+            ImGui.EndTabItem();
+        }
     }
 
     private void Save()
