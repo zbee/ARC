@@ -964,7 +964,7 @@ internal sealed class ConfigWindow : Window
         if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Plus, "Add Venture List to this Group"))
             ImGui.OpenPopup($"##AddItem{id}");
 
-        if (ImGui.BeginPopupContextItem($"##AddItem{id}"))
+        if (ImGui.BeginPopupContextItem($"##AddItem{id}", ImGuiPopupFlags.NoOpenOverItems))
         {
             foreach (var list in unusedLists)
             {
