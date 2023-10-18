@@ -85,7 +85,7 @@ internal sealed class ConfigWindow : Window
             DrawCharacterGroups();
             DrawCharacters();
             DrawGatheredItemsToCheck();
-            DrawUiTab();
+            DrawMiscTab();
             ImGui.EndTabBar();
         }
     }
@@ -1020,10 +1020,30 @@ internal sealed class ConfigWindow : Window
         ImGui.PopID();
     }
 
-    private void DrawUiTab()
+    private void DrawMiscTab()
     {
-        if (ImGui.BeginTabItem("UI"))
+        if (ImGui.BeginTabItem("Misc"))
         {
+            ImGui.Text("Venture Settings");
+            ImGui.Spacing();
+
+            ImGui.SetNextItemWidth(130);
+            int venturesToKeep = _configuration.Misc.VenturesToKeep;
+            if (ImGui.InputInt("Minimum Ventures needed to assign retainers", ref venturesToKeep))
+            {
+                _configuration.Misc.VenturesToKeep = Math.Max(0, Math.Min(65000, venturesToKeep));
+                Save();
+            }
+
+            ImGui.SameLine();
+            ImGuiComponents.HelpMarker($"If you have less than {venturesToKeep} ventures, retainers will only be sent out for Quick Ventures (instead of picking the next item from the Venture List).");
+
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            ImGui.Text("User Interface Settings");
+
             bool showContents = _configuration.ConfigUiOptions.ShowVentureListContents;
             if (ImGui.Checkbox("Show Venture List preview in Groups/Retainer tabs", ref showContents))
             {

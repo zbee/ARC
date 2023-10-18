@@ -38,6 +38,12 @@ partial class AutoRetainerControlPlugin
                 save = true;
             }
 
+            if (character.Ventures != offlineCharacterData.Ventures)
+            {
+                character.Ventures = offlineCharacterData.Ventures;
+                save = true;
+            }
+
             List<string> seenRetainers = new();
             foreach (var retainerData in offlineCharacterData.RetainerData)
             {

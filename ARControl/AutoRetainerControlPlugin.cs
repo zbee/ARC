@@ -112,127 +112,141 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
 
         _pluginLog.Information("Checking tasks...");
         Sync();
-        var venturesInProgress = CalculateVenturesInProgress(ch);
-        foreach (var inpr in venturesInProgress)
-        {
-            _pluginLog.Verbose($"Venture In Progress: ItemId {inpr.Key} for a total amount of {inpr.Value}");
-        }
 
-        IReadOnlyList<Guid> itemListIds;
-        if (ch.Type == Configuration.CharacterType.Standalone)
-            itemListIds = ch.ItemListIds;
+        if (ch.Ventures == 0)
+        {
+            _pluginLog.Warning("Could not assign a next venture from venture list, as the character has no ventures left.");
+        }
+        else if (ch.Ventures <= _configuration.Misc.VenturesToKeep)
+        {
+            _pluginLog.Warning($"Could not assign a next venture from venture list, character only has {ch.Ventures} left, configuration says to only send out above {_configuration.Misc.VenturesToKeep} ventures.");
+        }
         else
         {
-            var group = _configuration.CharacterGroups.SingleOrDefault(x => x.Id == ch.CharacterGroupId);
-            if (group == null)
+            var venturesInProgress = CalculateVenturesInProgress(ch);
+            foreach (var inProgress in venturesInProgress)
             {
-                _pluginLog.Error($"Unable to resolve character group {ch.CharacterGroupId}.");
-                return null;
+                _pluginLog.Verbose(
+                    $"Venture In Progress: ItemId {inProgress.Key} for a total amount of {inProgress.Value}");
             }
 
-            itemListIds = group.ItemListIds;
-        }
-
-        var itemLists = itemListIds.Where(listId => listId != Guid.Empty)
-            .Select(listId => _configuration.ItemLists.SingleOrDefault(x => x.Id == listId))
-            .Where(list => list != null)
-            .Cast<Configuration.ItemList>()
-            .ToList();
-        InventoryManager* inventoryManager = InventoryManager.Instance();
-        foreach (var list in itemLists)
-        {
-            _pluginLog.Information($"Checking ventures in list '{list.Name}'");
-            IReadOnlyList<StockedItem> itemsOnList;
-            if (list.Type == Configuration.ListType.CollectOneTime)
-            {
-                itemsOnList = list.Items
-                    .Select(x => new StockedItem
-                    {
-                        QueuedItem = x,
-                        InventoryCount = 0,
-                    })
-                    .Where(x => x.RequestedCount > 0)
-                    .ToList()
-                    .AsReadOnly();
-            }
+            IReadOnlyList<Guid> itemListIds;
+            if (ch.Type == Configuration.CharacterType.Standalone)
+                itemListIds = ch.ItemListIds;
             else
             {
-                itemsOnList = list.Items
-                    .Select(x => new StockedItem
-                    {
-                        QueuedItem = x,
-                        InventoryCount = inventoryManager->GetInventoryItemCount(x.ItemId) +
-                                         (venturesInProgress.TryGetValue(x.ItemId, out int inProgress)
-                                             ? inProgress
-                                             : 0),
-                    })
-                    .Where(x => x.InventoryCount <= x.RequestedCount)
-                    .ToList()
-                    .AsReadOnly();
+                var group = _configuration.CharacterGroups.SingleOrDefault(x => x.Id == ch.CharacterGroupId);
+                if (group == null)
+                {
+                    _pluginLog.Error($"Unable to resolve character group {ch.CharacterGroupId}.");
+                    return null;
+                }
 
-                // collect items with the least current inventory first
-                if (list.Priority == Configuration.ListPriority.Balanced)
-                    itemsOnList = itemsOnList.OrderBy(x => x.InventoryCount).ToList().AsReadOnly();
+                itemListIds = group.ItemListIds;
             }
 
-            _pluginLog.Debug($"Found {itemsOnList.Count} to-do items on current list");
-            if (itemsOnList.Count == 0)
-                continue;
-
-            foreach (var itemOnList in itemsOnList)
+            var itemLists = itemListIds.Where(listId => listId != Guid.Empty)
+                .Select(listId => _configuration.ItemLists.SingleOrDefault(x => x.Id == listId))
+                .Where(list => list != null)
+                .Cast<Configuration.ItemList>()
+                .ToList();
+            InventoryManager* inventoryManager = InventoryManager.Instance();
+            foreach (var list in itemLists)
             {
-                _pluginLog.Debug($"Checking venture info for itemId {itemOnList.ItemId}");
-
-                var (venture, reward) = _ventureResolver.ResolveVenture(ch, retainer, itemOnList.ItemId);
-                if (venture == null)
+                _pluginLog.Information($"Checking ventures in list '{list.Name}'");
+                IReadOnlyList<StockedItem> itemsOnList;
+                if (list.Type == Configuration.ListType.CollectOneTime)
                 {
-                    venture = _gameCache.Ventures.FirstOrDefault(x => x.ItemId == itemOnList.ItemId);
-                    _pluginLog.Debug($"Retainer doesn't know how to gather itemId {itemOnList.ItemId} ({venture?.Name})");
-                }
-                else if (reward == null)
-                {
-                    _pluginLog.Debug($"Retainer can't complete venture '{venture.Name}'");
+                    itemsOnList = list.Items
+                        .Select(x => new StockedItem
+                        {
+                            QueuedItem = x,
+                            InventoryCount = 0,
+                        })
+                        .Where(x => x.RequestedCount > 0)
+                        .ToList()
+                        .AsReadOnly();
                 }
                 else
                 {
-                    _chatGui.Print(
-                        new SeString(new UIForegroundPayload(579))
-                            .Append(SeIconChar.Collectible.ToIconString())
-                            .Append(new UIForegroundPayload(0))
-                            .Append($" Sending retainer ")
-                            .Append(new UIForegroundPayload(1))
-                            .Append(retainerName)
-                            .Append(new UIForegroundPayload(0))
-                            .Append(" to collect ")
-                            .Append(new UIForegroundPayload(1))
-                            .Append($"{reward.Quantity}x ")
-                            .Append(new ItemPayload(venture.ItemId))
-                            .Append(venture.Name)
-                            .Append(RawPayload.LinkTerminator)
-                            .Append(new UIForegroundPayload(0))
-                            .Append(" for ")
-                            .Append(new UIForegroundPayload(1))
-                            .Append($"{list.Name} {list.GetIcon()}")
-                            .Append(new UIForegroundPayload(0))
-                            .Append("."));
-                    _pluginLog.Information(
-                        $"Setting AR to use venture {venture.RowId}, which should retrieve {reward.Quantity}x {venture.Name}");
-
-                    if (!dryRun)
-                    {
-                        retainer.HasVenture = true;
-                        retainer.LastVenture = venture.RowId;
-
-                        if (list.Type == Configuration.ListType.CollectOneTime)
+                    itemsOnList = list.Items
+                        .Select(x => new StockedItem
                         {
-                            itemOnList.RequestedCount =
-                                Math.Max(0, itemOnList.RequestedCount - reward.Quantity);
+                            QueuedItem = x,
+                            InventoryCount = inventoryManager->GetInventoryItemCount(x.ItemId) +
+                                             (venturesInProgress.TryGetValue(x.ItemId, out int inProgress)
+                                                 ? inProgress
+                                                 : 0),
+                        })
+                        .Where(x => x.InventoryCount <= x.RequestedCount)
+                        .ToList()
+                        .AsReadOnly();
+
+                    // collect items with the least current inventory first
+                    if (list.Priority == Configuration.ListPriority.Balanced)
+                        itemsOnList = itemsOnList.OrderBy(x => x.InventoryCount).ToList().AsReadOnly();
+                }
+
+                _pluginLog.Debug($"Found {itemsOnList.Count} to-do items on current list");
+                if (itemsOnList.Count == 0)
+                    continue;
+
+                foreach (var itemOnList in itemsOnList)
+                {
+                    _pluginLog.Debug($"Checking venture info for itemId {itemOnList.ItemId}");
+
+                    var (venture, reward) = _ventureResolver.ResolveVenture(ch, retainer, itemOnList.ItemId);
+                    if (venture == null)
+                    {
+                        venture = _gameCache.Ventures.FirstOrDefault(x => x.ItemId == itemOnList.ItemId);
+                        _pluginLog.Debug(
+                            $"Retainer doesn't know how to gather itemId {itemOnList.ItemId} ({venture?.Name})");
+                    }
+                    else if (reward == null)
+                    {
+                        _pluginLog.Debug($"Retainer can't complete venture '{venture.Name}'");
+                    }
+                    else
+                    {
+                        _chatGui.Print(
+                            new SeString(new UIForegroundPayload(579))
+                                .Append(SeIconChar.Collectible.ToIconString())
+                                .Append(new UIForegroundPayload(0))
+                                .Append($" Sending retainer ")
+                                .Append(new UIForegroundPayload(1))
+                                .Append(retainerName)
+                                .Append(new UIForegroundPayload(0))
+                                .Append(" to collect ")
+                                .Append(new UIForegroundPayload(1))
+                                .Append($"{reward.Quantity}x ")
+                                .Append(new ItemPayload(venture.ItemId))
+                                .Append(venture.Name)
+                                .Append(RawPayload.LinkTerminator)
+                                .Append(new UIForegroundPayload(0))
+                                .Append(" for ")
+                                .Append(new UIForegroundPayload(1))
+                                .Append($"{list.Name} {list.GetIcon()}")
+                                .Append(new UIForegroundPayload(0))
+                                .Append("."));
+                        _pluginLog.Information(
+                            $"Setting AR to use venture {venture.RowId}, which should retrieve {reward.Quantity}x {venture.Name}");
+
+                        if (!dryRun)
+                        {
+                            retainer.HasVenture = true;
+                            retainer.LastVenture = venture.RowId;
+
+                            if (list.Type == Configuration.ListType.CollectOneTime)
+                            {
+                                itemOnList.RequestedCount =
+                                    Math.Max(0, itemOnList.RequestedCount - reward.Quantity);
+                            }
+
+                            _pluginInterface.SavePluginConfig(_configuration);
                         }
 
-                        _pluginInterface.SavePluginConfig(_configuration);
+                        return venture.RowId;
                     }
-
-                    return venture.RowId;
                 }
             }
         }

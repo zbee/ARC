@@ -12,6 +12,7 @@ internal sealed class Configuration : IPluginConfiguration
     public List<CharacterConfiguration> Characters { get; set; } = new();
     public List<ItemList> ItemLists { get; set; } = new();
     public List<CharacterGroup> CharacterGroups { get; set; } = new();
+    public MiscConfiguration Misc { get; set; } = new();
     public ConfigWindowUiOptions ConfigUiOptions { get; set; } = new();
 
     public sealed class ItemList
@@ -68,6 +69,7 @@ internal sealed class Configuration : IPluginConfiguration
         public required string CharacterName { get; set; }
         public required string WorldName { get; set; }
 
+        public uint Ventures { get; set; }
         public CharacterType Type { get; set; } = CharacterType.NotManaged;
         public Guid CharacterGroupId { get; set; }
         public List<Guid> ItemListIds { get; set; } = new();
@@ -105,6 +107,11 @@ internal sealed class Configuration : IPluginConfiguration
         public int ItemLevel { get; set; }
         public int Gathering { get; set; }
         public int Perception { get; set; }
+    }
+
+    public sealed class MiscConfiguration
+    {
+        public int VenturesToKeep { get; set; }
     }
 
     public sealed class ConfigWindowUiOptions
