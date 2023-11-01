@@ -1,3 +1,9 @@
 [submodule "LLib"]
 	path = LLib
 	url = https://git.carvel.li/liza/LLib.git
+[submodule "AutoRetainerAPI"]
+	path = AutoRetainerAPI
+	url = https://github.com/PunishXIV/AutoRetainerAPI.git
+[submodule "ECommons"]
+	path = ECommons
+	url = https://github.com/NightmareXIV/ECommons.git

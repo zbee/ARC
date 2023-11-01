@@ -4,6 +4,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ARControl", "ARControl\ARCo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LLib", "LLib\LLib.csproj", "{C00249D7-E550-4A3F-937B-D938D1D46B8A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoRetainerAPI", "AutoRetainerAPI\AutoRetainerAPI\AutoRetainerAPI.csproj", "{325D077C-A47F-41D7-AA63-0FD3B4037C0B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommons", "ECommons\ECommons\ECommons.csproj", "{A3EDB8A3-1BB0-4E1A-A957-6F60D4C85290}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +22,13 @@ Global
 		{C00249D7-E550-4A3F-937B-D938D1D46B8A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C00249D7-E550-4A3F-937B-D938D1D46B8A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C00249D7-E550-4A3F-937B-D938D1D46B8A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{325D077C-A47F-41D7-AA63-0FD3B4037C0B}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{325D077C-A47F-41D7-AA63-0FD3B4037C0B}.Debug|Any CPU.Build.0 = Debug|x64
+		{325D077C-A47F-41D7-AA63-0FD3B4037C0B}.Release|Any CPU.ActiveCfg = Release|x64
+		{325D077C-A47F-41D7-AA63-0FD3B4037C0B}.Release|Any CPU.Build.0 = Release|x64
+		{A3EDB8A3-1BB0-4E1A-A957-6F60D4C85290}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{A3EDB8A3-1BB0-4E1A-A957-6F60D4C85290}.Debug|Any CPU.Build.0 = Debug|x64
+		{A3EDB8A3-1BB0-4E1A-A957-6F60D4C85290}.Release|Any CPU.ActiveCfg = Release|x64
+		{A3EDB8A3-1BB0-4E1A-A957-6F60D4C85290}.Release|Any CPU.Build.0 = Release|x64
 	EndGlobalSection
 EndGlobal

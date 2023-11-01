@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <TargetFramework>net7.0-windows</TargetFramework>
-        <Version>2.5</Version>
+        <Version>2.6</Version>
         <LangVersion>11.0</LangVersion>
         <Nullable>enable</Nullable>
         <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
@@ -16,7 +16,6 @@
 
     <PropertyGroup>
         <DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
-        <AutoRetainerLibPath>$(appdata)\XIVLauncher\installedPlugins\AutoRetainer\4.2.1.2\</AutoRetainerLibPath>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux)))'">
@@ -24,6 +23,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\AutoRetainerAPI\AutoRetainerAPI\AutoRetainerAPI.csproj" />
         <ProjectReference Include="..\LLib\LLib.csproj"/>
     </ItemGroup>
 
@@ -55,12 +55,6 @@
         <Reference Include="FFXIVClientStructs">
             <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
             <Private>false</Private>
-        </Reference>
-        <Reference Include="AutoRetainerAPI">
-            <HintPath>$(AutoRetainerLibPath)AutoRetainerAPI.dll</HintPath>
-        </Reference>
-        <Reference Include="ECommons">
-            <HintPath>$(AutoRetainerLibPath)ECommons.dll</HintPath>
         </Reference>
     </ItemGroup>
 
