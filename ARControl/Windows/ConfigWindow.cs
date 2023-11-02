@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Text;
+using System.Text.RegularExpressions;
 using ARControl.GameData;
 using Dalamud.Game.Text;
 using Dalamud.Interface;
@@ -30,6 +32,8 @@ internal sealed class ConfigWindow : Window
 
     private static readonly string[] PriorityLabels =
         { "Collect in order of the list", "Collect item with lowest inventory first" };
+
+    private static readonly Regex CountAndName = new(@"^(\d{1,5})x?\s+(.*)$", RegexOptions.Compiled);
 
     private readonly DalamudPluginInterface _pluginInterface;
     private readonly Configuration _configuration;
@@ -278,8 +282,22 @@ internal sealed class ConfigWindow : Window
             ImGuiEx.SetNextItemFullWidth();
             ImGui.InputTextWithHint("", "Filter...", ref _searchString, 256, ImGuiInputTextFlags.AutoSelectAll);
 
+            int quantity;
+            string itemName;
+            var regexMatch = CountAndName.Match(_searchString);
+            if (regexMatch.Success)
+            {
+                quantity = int.Parse(regexMatch.Groups[1].Value);
+                itemName = regexMatch.Groups[2].Value.ToLower();
+            }
+            else
+            {
+                quantity = 0;
+                itemName = _searchString.ToLower();
+            }
+
             foreach (var ventures in _gameCache.Ventures
-                         .Where(x => x.Name.ToLower().Contains(_searchString.ToLower()))
+                         .Where(x => x.Name.ToLower().Contains(itemName))
                          .OrderBy(x => x.Level)
                          .ThenBy(x => x.Name)
                          .ThenBy(x => x.ItemId)
@@ -300,7 +318,7 @@ internal sealed class ConfigWindow : Window
                     list.Items.Add(new Configuration.QueuedItem
                     {
                         ItemId = venture.ItemId,
-                        RemainingQuantity = 0,
+                        RemainingQuantity = quantity,
                     });
                     Save();
                 }
@@ -365,6 +383,7 @@ internal sealed class ConfigWindow : Window
                     else
                         indexToAdd = 0;
                 }
+
                 ImGui.EndDisabled();
                 ImGui.SameLine();
             }
@@ -391,9 +410,85 @@ internal sealed class ConfigWindow : Window
             Save();
         }
 
+        ImGui.Spacing();
+        List<Configuration.QueuedItem> clipboardItems = new();
+        try
+        {
+            string? clipboardText = GetClipboardText();
+            if (!string.IsNullOrWhiteSpace(clipboardText))
+            {
+                foreach (var clipboardLine in clipboardText.ReplaceLineEndings().Split(Environment.NewLine))
+                {
+                    var match = CountAndName.Match(clipboardLine);
+                    if (!match.Success)
+                        continue;
+
+                    var venture = _gameCache.Ventures.FirstOrDefault(x =>
+                        x.Name.Equals(match.Groups[2].Value, StringComparison.CurrentCultureIgnoreCase));
+                    if (venture != null && int.TryParse(match.Groups[1].Value, out int quantity))
+                    {
+                        clipboardItems.Add(new Configuration.QueuedItem
+                        {
+                            ItemId = venture.ItemId,
+                            RemainingQuantity = quantity,
+                        });
+                    }
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            _pluginLog.Warning(e, "Unable to extract clipboard text");
+        }
+
+        ImGui.BeginDisabled(clipboardItems.Count == 0);
+        if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Download, "Import from Clipboard"))
+        {
+            _pluginLog.Information($"Importing {clipboardItems.Count} clipboard items");
+            foreach (var item in clipboardItems)
+            {
+                var existingItem = list.Items.FirstOrDefault(x => x.ItemId == item.ItemId);
+                if (existingItem != null)
+                    existingItem.RemainingQuantity += item.RemainingQuantity;
+                else
+                    list.Items.Add(item);
+            }
+
+            ImGui.SetClipboardText(null);
+            Save();
+        }
+
+        ImGui.EndDisabled();
+
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.BeginTooltip();
+            ImGui.Text("Supports importing a list in a Teamcraft-compatible format.");
+            ImGui.Spacing();
+            if (clipboardItems.Count > 0)
+            {
+                ImGui.Text("Clicking this button now would add the following items:");
+                ImGui.Indent();
+                foreach (var item in clipboardItems)
+                    ImGui.TextUnformatted(
+                        $"{item.RemainingQuantity}x {_gameCache.Ventures.First(x => item.ItemId == x.ItemId).Name}");
+                ImGui.Unindent();
+            }
+            else
+            {
+                ImGui.Text("For example:");
+                ImGui.Indent();
+                ImGui.Text("2000x Cobalt Ore");
+                ImGui.Text("1000x Gold Ore");
+                ImGui.Unindent();
+            }
+
+            ImGui.EndTooltip();
+        }
+
         if (list.Items.Count > 0 && list.Type == Configuration.ListType.CollectOneTime)
         {
-            ImGui.Spacing();
+            ImGui.SameLine();
             ImGui.BeginDisabled(list.Items.All(x => x.RemainingQuantity > 0));
             if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Check, "Remove all finished items"))
             {
@@ -1036,7 +1131,8 @@ internal sealed class ConfigWindow : Window
             }
 
             ImGui.SameLine();
-            ImGuiComponents.HelpMarker($"If you have less than {venturesToKeep} ventures, retainers will only be sent out for Quick Ventures (instead of picking the next item from the Venture List).");
+            ImGuiComponents.HelpMarker(
+                $"If you have less than {venturesToKeep} ventures, retainers will only be sent out for Quick Ventures (instead of picking the next item from the Venture List).");
 
             ImGui.Spacing();
             ImGui.Separator();
@@ -1057,7 +1153,9 @@ internal sealed class ConfigWindow : Window
                 _configuration.ConfigUiOptions.WrapAroundWhenReordering = wrapAroundWhenReordering;
                 Save();
             }
-            ImGuiComponents.HelpMarker("When enabled:\n- Clicking the Up-Arrow for the first item in a list, that item will be moved to the bottom.\n- Clicking the Down-Arrow for the last item in the list, that item will be moved to the top.");
+
+            ImGuiComponents.HelpMarker(
+                "When enabled:\n- Clicking the Up-Arrow for the first item in a list, that item will be moved to the bottom.\n- Clicking the Down-Arrow for the last item in the list, that item will be moved to the top.");
 
             ImGui.EndTabItem();
         }
@@ -1066,6 +1164,21 @@ internal sealed class ConfigWindow : Window
     private void Save()
     {
         _pluginInterface.SavePluginConfig(_configuration);
+    }
+
+    /// <summary>
+    /// The default implementation for <see cref="ImGui.GetClipboardText"/> throws an NullReferenceException if the clipboard is empty, maybe also if it doesn't contain text.
+    /// </summary>
+    private unsafe string? GetClipboardText()
+    {
+        byte* ptr = ImGuiNative.igGetClipboardText();
+        if (ptr == null)
+            return null;
+
+        int byteCount = 0;
+        while (ptr[byteCount] != 0)
+            ++byteCount;
+        return Encoding.UTF8.GetString(ptr, byteCount);
     }
 
     private sealed class CheckedCharacter
