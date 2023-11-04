@@ -280,7 +280,9 @@ internal sealed class ConfigWindow : Window
         if (ImGui.BeginCombo($"##VentureSelection{list.Id}", "Add Venture...", ImGuiComboFlags.HeightLarge))
         {
             ImGuiEx.SetNextItemFullWidth();
-            ImGui.InputTextWithHint("", "Filter...", ref _searchString, 256, ImGuiInputTextFlags.AutoSelectAll);
+
+            bool addFirst = ImGui.InputTextWithHint("", "Filter...", ref _searchString, 256,
+                ImGuiInputTextFlags.AutoSelectAll | ImGuiInputTextFlags.EnterReturnsTrue);
 
             int quantity;
             string itemName;
@@ -296,15 +298,19 @@ internal sealed class ConfigWindow : Window
                 itemName = _searchString.ToLower();
             }
 
-            foreach (var ventures in _gameCache.Ventures
+            foreach (var filtered in _gameCache.Ventures
                          .Where(x => x.Name.ToLower().Contains(itemName))
                          .OrderBy(x => x.Level)
                          .ThenBy(x => x.Name)
                          .ThenBy(x => x.ItemId)
-                         .GroupBy(x => x.ItemId))
+                         .GroupBy(x => x.ItemId)
+                         .Select(x => new
+                         {
+                             Venture = x.First(),
+                             CategoryNames = x.Select(y => y.CategoryName)
+                         }))
             {
-                var venture = ventures.First();
-                IDalamudTextureWrap? icon = _iconCache.GetIcon(venture.IconId);
+                IDalamudTextureWrap? icon = _iconCache.GetIcon(filtered.Venture.IconId);
                 if (icon != null)
                 {
                     ImGui.Image(icon.ImGuiHandle, new Vector2(23, 23));
@@ -312,14 +318,23 @@ internal sealed class ConfigWindow : Window
                     ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 3);
                 }
 
-                if (ImGui.Selectable(
-                        $"{venture.Name} ({string.Join(" ", ventures.Select(x => x.CategoryName))})##SelectVenture{venture.RowId}"))
+                bool addThis = ImGui.Selectable(
+                    $"{filtered.Venture.Name} ({string.Join(" ", filtered.CategoryNames)})##SelectVenture{filtered.Venture.RowId}");
+
+                if (addThis || addFirst)
                 {
                     list.Items.Add(new Configuration.QueuedItem
                     {
-                        ItemId = venture.ItemId,
+                        ItemId = filtered.Venture.ItemId,
                         RemainingQuantity = quantity,
                     });
+
+                    if (addFirst)
+                    {
+                        addFirst = false;
+                        ImGui.CloseCurrentPopup();
+                    }
+
                     Save();
                 }
             }
