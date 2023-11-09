@@ -10,7 +10,6 @@ using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Internal;
-using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using ECommons;
@@ -20,7 +19,7 @@ using LLib;
 
 namespace ARControl.Windows;
 
-internal sealed class ConfigWindow : Window
+internal sealed class ConfigWindow : LImGui.LWindow
 {
     // TODO This should also allow retainers under max level
     private const byte MinLevel = 10;
@@ -81,8 +80,6 @@ internal sealed class ConfigWindow : Window
 
     public override void Draw()
     {
-        LImGui.AddPatreonIcon(_pluginInterface);
-
         if (ImGui.BeginTabBar("ARConfigTabs"))
         {
             DrawVentureLists();
