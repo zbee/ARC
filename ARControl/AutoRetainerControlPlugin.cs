@@ -178,7 +178,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
                                                  ? inProgress
                                                  : 0),
                         })
-                        .Where(x => x.InventoryCount <= x.RequestedCount)
+                        .Where(x => x.InventoryCount < x.RequestedCount)
                         .ToList()
                         .AsReadOnly();
 
