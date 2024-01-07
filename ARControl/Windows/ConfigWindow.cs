@@ -33,6 +33,7 @@ internal sealed class ConfigWindow : LImGui.LWindow
         { "Collect in order of the list", "Collect item with lowest inventory first" };
 
     private static readonly Regex CountAndName = new(@"^(\d{1,5})x?\s+(.*)$", RegexOptions.Compiled);
+    private static readonly string CurrentCharPrefix = FontAwesomeIcon.Male.ToIconString();
 
     private readonly DalamudPluginInterface _pluginInterface;
     private readonly Configuration _configuration;
@@ -978,7 +979,23 @@ internal sealed class ConfigWindow : LImGui.LWindow
                         {
                             var color = ch.Items[item.ItemId];
                             if (color == ColorRed || (color == ColorGreen && !onlyShowMissing))
-                                ImGui.TextColored(color, ch.Character.ToString());
+                            {
+                                bool currentCharacter = _clientState.LocalContentId == ch.Character.LocalContentId;
+                                if (currentCharacter)
+                                {
+                                    ImGui.PushFont(UiBuilder.IconFont);
+                                    float x = ImGui.GetCursorPosX();
+                                    ImGui.SetCursorPosX(x - ImGui.CalcTextSize(CurrentCharPrefix).X - 5);
+                                    ImGui.TextUnformatted(CurrentCharPrefix);
+                                    ImGui.SetCursorPosX(x);
+                                    ImGui.SameLine(0, 5);
+                                    ImGui.PopFont();
+                                }
+
+                                ImGui.PushStyleColor(ImGuiCol.Text, color);
+                                ImGui.TextUnformatted(ch.Character.ToString());
+                                ImGui.PopStyleColor();
+                            }
                         }
 
                         ImGui.Unindent(30);
