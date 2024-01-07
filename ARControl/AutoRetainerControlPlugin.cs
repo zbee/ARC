@@ -374,7 +374,10 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
             if (s.Length > 1)
                 retainerName = ch.Retainers.SingleOrDefault(x => x.Name.EqualsIgnoreCase(s[1]))?.Name;
             else
-                retainerName = ch.Retainers.MinBy(x => x.DisplayOrder)?.Name;
+                retainerName = ch.Retainers
+                    .OrderBy(x => x.DisplayOrder)
+                    .ThenBy(x => x.RetainerContentId)
+                    .FirstOrDefault()?.Name;
 
             if (retainerName == null)
             {

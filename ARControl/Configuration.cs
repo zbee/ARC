@@ -97,6 +97,7 @@ internal sealed class Configuration : IPluginConfiguration
 
     public sealed class RetainerConfiguration
     {
+        public ulong RetainerContentId { get; set; }
         public required string Name { get; set; }
         public required bool Managed { get; set; }
         public int DisplayOrder { get; set; }

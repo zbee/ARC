@@ -635,7 +635,8 @@ internal sealed class ConfigWindow : LImGui.LWindow
                             if (ImGui.BeginTabItem("Retainers"))
                             {
                                 foreach (var retainer in character.Retainers.Where(x => x.Job > 0)
-                                             .OrderBy(x => x.DisplayOrder))
+                                             .OrderBy(x => x.DisplayOrder)
+                                             .ThenBy(x => x.RetainerContentId))
                                 {
                                     ImGui.BeginDisabled(retainer.Level < MinLevel);
 
@@ -649,7 +650,7 @@ internal sealed class ConfigWindow : LImGui.LWindow
                                     }
 
                                     if (ImGui.Checkbox(
-                                            $"{retainer.Name}###Retainer{retainer.Name}{retainer.DisplayOrder}",
+                                            $"{retainer.Name}###Retainer{retainer.Name}{retainer.RetainerContentId}",
                                             ref managed))
                                     {
                                         retainer.Managed = managed;

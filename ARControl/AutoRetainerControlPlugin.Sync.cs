@@ -44,14 +44,43 @@ partial class AutoRetainerControlPlugin
                 save = true;
             }
 
-            List<string> seenRetainers = new();
+            // migrate legacy retainers
+            foreach (var legacyRetainer in character.Retainers.Where(x => x.RetainerContentId == 0))
+            {
+                var retainerData =
+                    offlineCharacterData.RetainerData.SingleOrDefault(x => legacyRetainer.Name == x.Name);
+                if (retainerData != null)
+                {
+                    _pluginLog.Information(
+                        $"Assigning contentId {retainerData.RetainerID} to retainer {retainerData.Name}");
+                    legacyRetainer.RetainerContentId = retainerData.RetainerID;
+                    save = true;
+                }
+            }
+
+            var retainersWithoutContentId = character.Retainers.Where(c => c.RetainerContentId == 0).ToList();
+            if (retainersWithoutContentId.Count > 0)
+            {
+                foreach (var retainer in retainersWithoutContentId)
+                {
+                    _pluginLog.Warning($"Removing retainer {retainer.Name} without contentId");
+                    character.Retainers.Remove(retainer);
+                }
+
+                save = true;
+            }
+
+            List<ulong> unknownRetainerIds = offlineCharacterData.RetainerData.Select(x => x.RetainerID).Where(x => x != 0).ToList();
             foreach (var retainerData in offlineCharacterData.RetainerData)
             {
-                var retainer = character.Retainers.SingleOrDefault(x => x.Name == retainerData.Name);
+                unknownRetainerIds.Remove(retainerData.RetainerID);
+
+                var retainer = character.Retainers.SingleOrDefault(x => x.RetainerContentId == retainerData.RetainerID);
                 if (retainer == null)
                 {
                     retainer = new Configuration.RetainerConfiguration
                     {
+                        RetainerContentId = retainerData.RetainerID,
                         Name = retainerData.Name,
                         Managed = false,
                     };
@@ -60,7 +89,11 @@ partial class AutoRetainerControlPlugin
                     character.Retainers.Add(retainer);
                 }
 
-                seenRetainers.Add(retainer.Name);
+                if (retainer.Name != retainerData.Name)
+                {
+                    retainer.Name = retainerData.Name;
+                    save = true;
+                }
 
                 if (retainer.DisplayOrder != retainerData.DisplayOrder)
                 {
@@ -113,8 +146,16 @@ partial class AutoRetainerControlPlugin
                 }
             }
 
-            if (character.Retainers.RemoveAll(x => !seenRetainers.Contains(x.Name)) > 0)
+            if (unknownRetainerIds.Count > 0)
+            {
+                foreach (var retainerId in unknownRetainerIds)
+                {
+                    _pluginLog.Warning($"Removing unknown retainer with contentId {retainerId}");
+                    character.Retainers.RemoveAll(c => c.RetainerContentId == retainerId);
+                }
+
                 save = true;
+            }
         }
 
         if (save)
