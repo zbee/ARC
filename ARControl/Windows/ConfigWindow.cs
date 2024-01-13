@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Text.RegularExpressions;
+using ARControl.External;
 using ARControl.GameData;
 using Dalamud.Game.Text;
 using Dalamud.Interface;
@@ -34,6 +36,7 @@ internal sealed class ConfigWindow : LImGui.LWindow
 
     private static readonly Regex CountAndName = new(@"^(\d{1,5})x?\s+(.*)$", RegexOptions.Compiled);
     private static readonly string CurrentCharPrefix = FontAwesomeIcon.Male.ToIconString();
+    private static readonly string DiscardWarningPrefix = FontAwesomeIcon.ExclamationCircle.ToIconString();
 
     private readonly DalamudPluginInterface _pluginInterface;
     private readonly Configuration _configuration;
@@ -41,6 +44,7 @@ internal sealed class ConfigWindow : LImGui.LWindow
     private readonly IClientState _clientState;
     private readonly ICommandManager _commandManager;
     private readonly IconCache _iconCache;
+    private readonly DiscardHelperIpc _discardHelperIpc;
     private readonly IPluginLog _pluginLog;
 
     private readonly Dictionary<Guid, TemporaryConfig> _currentEditPopups = new();
@@ -61,6 +65,7 @@ internal sealed class ConfigWindow : LImGui.LWindow
         IClientState clientState,
         ICommandManager commandManager,
         IconCache iconCache,
+        DiscardHelperIpc discardHelperIpc,
         IPluginLog pluginLog)
         : base($"ARC {SeIconChar.Collectible.ToIconString()}###ARControlConfig")
     {
@@ -70,6 +75,7 @@ internal sealed class ConfigWindow : LImGui.LWindow
         _clientState = clientState;
         _commandManager = commandManager;
         _iconCache = iconCache;
+        _discardHelperIpc = discardHelperIpc;
         _pluginLog = pluginLog;
 
         SizeConstraints = new()
@@ -97,6 +103,7 @@ internal sealed class ConfigWindow : LImGui.LWindow
         if (ImGui.BeginTabItem("Venture Lists"))
         {
             Configuration.ItemList? listToDelete = null;
+            IReadOnlySet<uint> itemsToDiscard = _discardHelperIpc.GetItemsToDiscard();
             foreach (var list in _configuration.ItemLists)
             {
                 ImGui.PushID($"List{list.Id}");
@@ -121,7 +128,7 @@ internal sealed class ConfigWindow : LImGui.LWindow
                 if (ImGui.CollapsingHeader(label))
                 {
                     ImGui.Indent(30);
-                    DrawVentureListItemSelection(list);
+                    DrawVentureListItemSelection(list, itemsToDiscard);
                     ImGui.Unindent(30);
                 }
 
@@ -272,7 +279,7 @@ internal sealed class ConfigWindow : LImGui.LWindow
         return (save, canSave);
     }
 
-    private void DrawVentureListItemSelection(Configuration.ItemList list)
+    private void DrawVentureListItemSelection(Configuration.ItemList list, IReadOnlySet<uint> itemsToDiscard)
     {
         ImGuiEx.SetNextItemFullWidth();
         if (ImGui.BeginCombo($"##VentureSelection{list.Id}", "Add Venture...", ImGuiComboFlags.HeightLarge))
@@ -352,6 +359,19 @@ internal sealed class ConfigWindow : LImGui.LWindow
             ImGui.PushID($"QueueItem{i}");
             var ventures = _gameCache.Ventures.Where(x => x.ItemId == item.ItemId).ToList();
             var venture = ventures.First();
+
+            if (itemsToDiscard.Contains(venture.ItemId))
+            {
+                ImGui.PushFont(UiBuilder.IconFont);
+                var pos = ImGui.GetCursorPos();
+                ImGui.SetCursorPos(new Vector2(pos.X - ImGui.CalcTextSize(DiscardWarningPrefix).X - 5, pos.Y + 2));
+                ImGui.TextColored(ImGuiColors.DalamudYellow, DiscardWarningPrefix);
+                ImGui.SetCursorPos(pos);
+                ImGui.PopFont();
+
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip("This item will be automatically discarded by 'Discard Helper'.");
+            }
 
             IDalamudTextureWrap? icon = _iconCache.GetIcon(venture.IconId);
             if (icon != null)
@@ -984,11 +1004,10 @@ internal sealed class ConfigWindow : LImGui.LWindow
                                 if (currentCharacter)
                                 {
                                     ImGui.PushFont(UiBuilder.IconFont);
-                                    float x = ImGui.GetCursorPosX();
-                                    ImGui.SetCursorPosX(x - ImGui.CalcTextSize(CurrentCharPrefix).X - 5);
+                                    var pos = ImGui.GetCursorPos();
+                                    ImGui.SetCursorPos(pos with { X = pos.X - ImGui.CalcTextSize(CurrentCharPrefix).X - 5 });
                                     ImGui.TextUnformatted(CurrentCharPrefix);
-                                    ImGui.SetCursorPosX(x);
-                                    ImGui.SameLine(0, 5);
+                                    ImGui.SetCursorPos(pos);
                                     ImGui.PopFont();
                                 }
 

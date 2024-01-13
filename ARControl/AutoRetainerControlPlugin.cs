@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using ARControl.External;
 using ARControl.GameData;
 using ARControl.Windows;
 using AutoRetainerAPI;
@@ -53,9 +54,10 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
         _gameCache = new GameCache(dataManager);
         _iconCache = new IconCache(textureProvider);
         _ventureResolver = new VentureResolver(_gameCache, _pluginLog);
+        DiscardHelperIpc discardHelperIpc = new(_pluginInterface);
         _configWindow =
             new ConfigWindow(_pluginInterface, _configuration, _gameCache, _clientState, _commandManager, _iconCache,
-                    _pluginLog);
+                discardHelperIpc, _pluginLog);
         _windowSystem.AddWindow(_configWindow);
 
         ECommonsMain.Init(_pluginInterface, this);
@@ -115,11 +117,13 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
 
         if (ch.Ventures == 0)
         {
-            _pluginLog.Warning("Could not assign a next venture from venture list, as the character has no ventures left.");
+            _pluginLog.Warning(
+                "Could not assign a next venture from venture list, as the character has no ventures left.");
         }
         else if (ch.Ventures <= _configuration.Misc.VenturesToKeep)
         {
-            _pluginLog.Warning($"Could not assign a next venture from venture list, character only has {ch.Ventures} left, configuration says to only send out above {_configuration.Misc.VenturesToKeep} ventures.");
+            _pluginLog.Warning(
+                $"Could not assign a next venture from venture list, character only has {ch.Ventures} left, configuration says to only send out above {_configuration.Misc.VenturesToKeep} ventures.");
         }
         else
         {
