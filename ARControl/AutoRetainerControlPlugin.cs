@@ -74,7 +74,18 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
         });
 
         if (_autoRetainerApi.Ready)
-            Sync();
+        {
+            try
+            {
+                Sync();
+            }
+            catch (Exception e)
+            {
+                _pluginLog.Error(e, "Unable to sync characters");
+                _chatGui.PrintError(
+                    "Unable to synchronize characters with AutoRetainer, plugin might not work properly.");
+            }
+        }
     }
 
     private void SendRetainerToVenture(string retainerName)

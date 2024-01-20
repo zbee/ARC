@@ -44,9 +44,13 @@ partial class AutoRetainerControlPlugin
                 save = true;
             }
 
+            // remove retainers without name
+            save |= character.Retainers.RemoveAll(x => string.IsNullOrEmpty(x.Name)) > 0;
+
             // migrate legacy retainers
             foreach (var legacyRetainer in character.Retainers.Where(x => x.RetainerContentId == 0))
             {
+                _pluginLog.Information($"Migrating retainer '{legacyRetainer.Name}' (char: {character})");
                 var retainerData =
                     offlineCharacterData.RetainerData.SingleOrDefault(x => legacyRetainer.Name == x.Name);
                 if (retainerData != null)
@@ -71,7 +75,7 @@ partial class AutoRetainerControlPlugin
             }
 
             List<ulong> unknownRetainerIds = offlineCharacterData.RetainerData.Select(x => x.RetainerID).Where(x => x != 0).ToList();
-            foreach (var retainerData in offlineCharacterData.RetainerData)
+            foreach (var retainerData in offlineCharacterData.RetainerData.Where(x => !string.IsNullOrEmpty(x.Name)))
             {
                 unknownRetainerIds.Remove(retainerData.RetainerID);
 
