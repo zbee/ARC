@@ -12,6 +12,7 @@ using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Internal;
+using Dalamud.Interface.Utility;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using ECommons;
@@ -55,7 +56,8 @@ internal sealed class ConfigWindow : LImGui.LWindow
     {
         Name = string.Empty,
         ListType = Configuration.ListType.CollectOneTime,
-        ListPriority = Configuration.ListPriority.InOrder
+        ListPriority = Configuration.ListPriority.InOrder,
+        CheckRetainerInventory = false,
     };
 
     public ConfigWindow(
@@ -115,6 +117,7 @@ internal sealed class ConfigWindow : LImGui.LWindow
                         Name = list.Name,
                         ListType = list.Type,
                         ListPriority = list.Priority,
+                        CheckRetainerInventory = list.CheckRetainerInventory,
                     };
                     ImGui.OpenPopup($"##EditList{list.Id}");
                 }
@@ -163,7 +166,8 @@ internal sealed class ConfigWindow : LImGui.LWindow
             var (save, canSave) = DrawVentureListEditor(temporaryConfig, list);
             ImGui.BeginDisabled(!canSave || (list.Name == temporaryConfig.Name &&
                                              list.Type == temporaryConfig.ListType &&
-                                             list.Priority == temporaryConfig.ListPriority));
+                                             list.Priority == temporaryConfig.ListPriority &&
+                                             list.CheckRetainerInventory == temporaryConfig.CheckRetainerInventory));
             save |= ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Save, "Save");
             ImGui.EndDisabled();
 
@@ -173,9 +177,15 @@ internal sealed class ConfigWindow : LImGui.LWindow
                 list.Type = temporaryConfig.ListType;
 
                 if (list.Type == Configuration.ListType.CollectOneTime)
+                {
                     list.Priority = Configuration.ListPriority.InOrder;
+                    list.CheckRetainerInventory = false;
+                }
                 else
+                {
                     list.Priority = temporaryConfig.ListPriority;
+                    list.CheckRetainerInventory = temporaryConfig.CheckRetainerInventory;
+                }
 
                 ImGui.CloseCurrentPopup();
                 Save();
@@ -230,13 +240,15 @@ internal sealed class ConfigWindow : LImGui.LWindow
                     Name = _newList.Name,
                     Type = _newList.ListType,
                     Priority = _newList.ListPriority,
+                    CheckRetainerInventory = _newList.CheckRetainerInventory,
                 });
 
                 _newList = new()
                 {
                     Name = string.Empty,
                     ListType = Configuration.ListType.CollectOneTime,
-                    ListPriority = Configuration.ListPriority.InOrder
+                    ListPriority = Configuration.ListPriority.InOrder,
+                    CheckRetainerInventory = false,
                 };
 
                 ImGui.CloseCurrentPopup();
@@ -250,6 +262,7 @@ internal sealed class ConfigWindow : LImGui.LWindow
     private (bool Save, bool CanSave) DrawVentureListEditor(TemporaryConfig temporaryConfig,
         Configuration.ItemList? list)
     {
+        ImGui.SetNextItemWidth(375 * ImGuiHelpers.GlobalScale);
         string listName = temporaryConfig.Name;
         bool save = ImGui.InputTextWithHint("", "List Name...", ref listName, 64,
             ImGuiInputTextFlags.EnterReturnsTrue);
@@ -257,6 +270,7 @@ internal sealed class ConfigWindow : LImGui.LWindow
         temporaryConfig.Name = listName;
 
         ImGui.PushID($"Type{list?.Id ?? Guid.Empty}");
+        ImGui.SetNextItemWidth(375 * ImGuiHelpers.GlobalScale);
         int type = (int)temporaryConfig.ListType;
         if (ImGui.Combo("", ref type, StockingTypeLabels, StockingTypeLabels.Length))
         {
@@ -270,9 +284,17 @@ internal sealed class ConfigWindow : LImGui.LWindow
         if (temporaryConfig.ListType == Configuration.ListType.KeepStocked)
         {
             ImGui.PushID($"Priority{list?.Id ?? Guid.Empty}");
+            ImGui.SetNextItemWidth(375 * ImGuiHelpers.GlobalScale);
             int priority = (int)temporaryConfig.ListPriority;
             if (ImGui.Combo("", ref priority, PriorityLabels, PriorityLabels.Length))
                 temporaryConfig.ListPriority = (Configuration.ListPriority)priority;
+            ImGui.PopID();
+
+            ImGui.PushID($"CheckRetainerInventory{list?.Id ?? Guid.Empty}");
+            bool checkRetainerInventory = temporaryConfig.CheckRetainerInventory;
+            if (ImGui.Checkbox("Check Retainer Inventory for items (requires AllaganTools)",
+                    ref checkRetainerInventory))
+                temporaryConfig.CheckRetainerInventory = checkRetainerInventory;
             ImGui.PopID();
         }
 
@@ -1038,6 +1060,7 @@ internal sealed class ConfigWindow : LImGui.LWindow
                     Name = "---",
                     Type = Configuration.ListType.CollectOneTime,
                     Priority = Configuration.ListPriority.InOrder,
+                    CheckRetainerInventory = false,
                 }
             }.Concat(_configuration.ItemLists)
             .Select(x => (x.Id, $"{x.Name} {x.GetIcon()}".TrimEnd(), x)).ToList();
@@ -1303,5 +1326,6 @@ internal sealed class ConfigWindow : LImGui.LWindow
         public required string Name { get; set; }
         public Configuration.ListType ListType { get; set; }
         public Configuration.ListPriority ListPriority { get; set; }
+        public bool CheckRetainerInventory { get; set; }
     }
 }

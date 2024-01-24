@@ -36,6 +36,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
     private readonly GameCache _gameCache;
     private readonly IconCache _iconCache;
     private readonly VentureResolver _ventureResolver;
+    private readonly AllaganToolsIpc _allaganToolsIpc;
     private readonly ConfigWindow _configWindow;
     private readonly AutoRetainerApi _autoRetainerApi;
 
@@ -55,6 +56,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
         _iconCache = new IconCache(textureProvider);
         _ventureResolver = new VentureResolver(_gameCache, _pluginLog);
         DiscardHelperIpc discardHelperIpc = new(_pluginInterface);
+        _allaganToolsIpc = new AllaganToolsIpc(pluginInterface, pluginLog);
         _configWindow =
             new ConfigWindow(_pluginInterface, _configuration, _gameCache, _clientState, _commandManager, _iconCache,
                 discardHelperIpc, _pluginLog);
@@ -189,8 +191,9 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
                         {
                             QueuedItem = x,
                             InventoryCount = inventoryManager->GetInventoryItemCount(x.ItemId) +
-                                             (venturesInProgress.TryGetValue(x.ItemId, out int inProgress)
-                                                 ? inProgress
+                                             venturesInProgress.GetValueOrDefault(x.ItemId, 0) +
+                                             (list.CheckRetainerInventory
+                                                 ? (int)_allaganToolsIpc.GetRetainerItemCount(x.ItemId)
                                                  : 0),
                         })
                         .Where(x => x.InventoryCount < x.RequestedCount)
