@@ -52,7 +52,6 @@ internal sealed class ConfigWindow : LWindow
     private readonly Dictionary<Guid, TemporaryConfig> _currentEditPopups = new();
     private string _searchString = string.Empty;
     private float _mainIndentSize = 1;
-    private float _mainIconSize = 23;
     private TemporaryConfig _newGroup = new() { Name = string.Empty };
 
     private TemporaryConfig _newList = new()
@@ -99,7 +98,6 @@ internal sealed class ConfigWindow : LWindow
                 ImGui.GetStyle().FramePadding.X * 2f +
                 ImGui.GetStyle().ItemSpacing.X - ImGui.GetStyle().WindowPadding.X / 2;
             ImGui.PopFont();
-            _mainIconSize = ImGui.CalcTextSize("X").Y + ImGui.GetStyle().FramePadding.Y * 2;
 
             DrawVentureLists();
             DrawCharacterGroups();
@@ -408,8 +406,8 @@ internal sealed class ConfigWindow : LWindow
             IDalamudTextureWrap? icon = _iconCache.GetIcon(venture.IconId);
             if (icon != null)
             {
-                ImGui.Image(icon.ImGuiHandle, new Vector2(_mainIconSize, _mainIconSize));
-                ImGui.SameLine(0, 3);
+                ImGui.Image(icon.ImGuiHandle, new Vector2(ImGui.GetFrameHeight()));
+                ImGui.SameLine(0, ImGui.GetStyle().FramePadding.X);
             }
 
             ImGui.SetNextItemWidth(130 * ImGuiHelpers.GlobalScale);
@@ -730,8 +728,8 @@ internal sealed class ConfigWindow : LWindow
                                     IDalamudTextureWrap? icon = _iconCache.GetIcon(62000 + retainer.Job);
                                     if (icon != null)
                                     {
-                                        ImGui.Image(icon.ImGuiHandle, new Vector2(_mainIconSize, _mainIconSize));
-                                        ImGui.SameLine(0, 3);
+                                        ImGui.Image(icon.ImGuiHandle, new Vector2(ImGui.GetFrameHeight()));
+                                        ImGui.SameLine(0, ImGui.GetStyle().FramePadding.X);
                                     }
 
                                     if (ImGui.Checkbox(
