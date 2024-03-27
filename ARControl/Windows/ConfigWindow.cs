@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using System.Text;
@@ -19,10 +19,11 @@ using ECommons;
 using ECommons.ImGuiMethods;
 using ImGuiNET;
 using LLib;
+using LLib.ImGui;
 
 namespace ARControl.Windows;
 
-internal sealed class ConfigWindow : LImGui.LWindow
+internal sealed class ConfigWindow : LWindow
 {
     // TODO This should also allow retainers under max level
     private const byte MinLevel = 10;
@@ -316,17 +317,17 @@ internal sealed class ConfigWindow : LImGui.LWindow
             var regexMatch = CountAndName.Match(_searchString);
             if (regexMatch.Success)
             {
-                quantity = int.Parse(regexMatch.Groups[1].Value);
-                itemName = regexMatch.Groups[2].Value.ToLower();
+                quantity = int.Parse(regexMatch.Groups[1].Value, CultureInfo.InvariantCulture);
+                itemName = regexMatch.Groups[2].Value;
             }
             else
             {
                 quantity = 0;
-                itemName = _searchString.ToLower();
+                itemName = _searchString;
             }
 
             foreach (var filtered in _gameCache.Ventures
-                         .Where(x => x.Name.ToLower().Contains(itemName))
+                         .Where(x => x.Name.Contains(itemName, StringComparison.OrdinalIgnoreCase))
                          .OrderBy(x => x.Level)
                          .ThenBy(x => x.Name)
                          .ThenBy(x => x.ItemId)
@@ -466,36 +467,15 @@ internal sealed class ConfigWindow : LImGui.LWindow
         }
 
         ImGui.Spacing();
-        List<Configuration.QueuedItem> clipboardItems = new();
-        try
-        {
-            string? clipboardText = GetClipboardText();
-            if (!string.IsNullOrWhiteSpace(clipboardText))
-            {
-                foreach (var clipboardLine in clipboardText.ReplaceLineEndings().Split(Environment.NewLine))
-                {
-                    var match = CountAndName.Match(clipboardLine);
-                    if (!match.Success)
-                        continue;
+        List<Configuration.QueuedItem> clipboardItems = ParseClipboardItems();
+        ImportFromClipboardButton(list, clipboardItems);
+        RemoveFinishedItemsButton(list);
 
-                    var venture = _gameCache.Ventures.FirstOrDefault(x =>
-                        x.Name.Equals(match.Groups[2].Value, StringComparison.CurrentCultureIgnoreCase));
-                    if (venture != null && int.TryParse(match.Groups[1].Value, out int quantity))
-                    {
-                        clipboardItems.Add(new Configuration.QueuedItem
-                        {
-                            ItemId = venture.ItemId,
-                            RemainingQuantity = quantity,
-                        });
-                    }
-                }
-            }
-        }
-        catch (Exception e)
-        {
-            _pluginLog.Warning(e, "Unable to extract clipboard text");
-        }
+        ImGui.Spacing();
+    }
 
+    private void ImportFromClipboardButton(Configuration.ItemList list, List<Configuration.QueuedItem> clipboardItems)
+    {
         ImGui.BeginDisabled(clipboardItems.Count == 0);
         if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Download, "Import from Clipboard"))
         {
@@ -540,7 +520,10 @@ internal sealed class ConfigWindow : LImGui.LWindow
 
             ImGui.EndTooltip();
         }
+    }
 
+    private void RemoveFinishedItemsButton(Configuration.ItemList list)
+    {
         if (list.Items.Count > 0 && list.Type == Configuration.ListType.CollectOneTime)
         {
             ImGui.SameLine();
@@ -553,8 +536,41 @@ internal sealed class ConfigWindow : LImGui.LWindow
 
             ImGui.EndDisabled();
         }
+    }
 
-        ImGui.Spacing();
+    private List<Configuration.QueuedItem> ParseClipboardItems()
+    {
+        List<Configuration.QueuedItem> clipboardItems = new List<Configuration.QueuedItem>();
+        try
+        {
+            string? clipboardText = GetClipboardText();
+            if (!string.IsNullOrWhiteSpace(clipboardText))
+            {
+                foreach (var clipboardLine in clipboardText.ReplaceLineEndings().Split(Environment.NewLine))
+                {
+                    var match = CountAndName.Match(clipboardLine);
+                    if (!match.Success)
+                        continue;
+
+                    var venture = _gameCache.Ventures.FirstOrDefault(x =>
+                        x.Name.Equals(match.Groups[2].Value, StringComparison.OrdinalIgnoreCase));
+                    if (venture != null && int.TryParse(match.Groups[1].Value, out int quantity))
+                    {
+                        clipboardItems.Add(new Configuration.QueuedItem
+                        {
+                            ItemId = venture.ItemId,
+                            RemainingQuantity = quantity,
+                        });
+                    }
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            _pluginLog.Warning(e, "Unable to extract clipboard text");
+        }
+
+        return clipboardItems;
     }
 
     private void DrawCharacters()
@@ -644,7 +660,8 @@ internal sealed class ConfigWindow : LImGui.LWindow
                                     // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
                                     if (character.ItemListIds == null)
                                         character.ItemListIds = new();
-                                    DrawVentureListSelection(character.LocalContentId.ToString(),
+                                    DrawVentureListSelection(
+                                        character.LocalContentId.ToString(CultureInfo.InvariantCulture),
                                         character.ItemListIds);
                                 }
                                 else
@@ -890,14 +907,14 @@ internal sealed class ConfigWindow : LImGui.LWindow
     private bool IsValidGroupName(string name, Configuration.CharacterGroup? existingGroup)
     {
         return name.Length >= 2 &&
-               !name.Contains('%') &&
+               !name.Contains('%', StringComparison.Ordinal) &&
                !_configuration.CharacterGroups.Any(x => x != existingGroup && name.EqualsIgnoreCase(x.Name));
     }
 
     private bool IsValidListName(string name, Configuration.ItemList? existingList)
     {
         return name.Length >= 2 &&
-               !name.Contains('%') &&
+               !name.Contains('%', StringComparison.Ordinal) &&
                !_configuration.ItemLists.Any(x => x != existingList && name.EqualsIgnoreCase(x.Name));
     }
 
@@ -949,7 +966,7 @@ internal sealed class ConfigWindow : LImGui.LWindow
 
             if (checkPerCharacter)
             {
-                foreach (var ch in charactersToCheck.Where(x => x.ToCheck(onlyShowMissing).Any()))
+                foreach (var ch in charactersToCheck.Where(x => x.ToCheck(onlyShowMissing).Count != 0))
                 {
                     bool currentCharacter = _clientState.LocalContentId == ch.Character.LocalContentId;
                     ImGui.BeginDisabled(currentCharacter);
@@ -1027,7 +1044,10 @@ internal sealed class ConfigWindow : LImGui.LWindow
                                 {
                                     ImGui.PushFont(UiBuilder.IconFont);
                                     var pos = ImGui.GetCursorPos();
-                                    ImGui.SetCursorPos(pos with { X = pos.X - ImGui.CalcTextSize(CurrentCharPrefix).X - 5 });
+                                    ImGui.SetCursorPos(pos with
+                                    {
+                                        X = pos.X - ImGui.CalcTextSize(CurrentCharPrefix).X - 5
+                                    });
                                     ImGui.TextUnformatted(CurrentCharPrefix);
                                     ImGui.SetCursorPos(pos);
                                     ImGui.PopFont();

@@ -7,7 +7,7 @@ using FFXIVClientStructs.FFXIV.Client.Game;
 
 namespace ARControl.External;
 
-public class AllaganToolsIpc
+internal sealed class AllaganToolsIpc
 {
     private readonly IPluginLog _pluginLog;
 
@@ -39,7 +39,7 @@ public class AllaganToolsIpc
             _pluginLog.Verbose($"Found {itemCount} items in retainer inventories for itemId {itemId}");
             return itemCount;
         }
-        catch (IpcError e)
+        catch (IpcError)
         {
             _pluginLog.Warning("Could not query allagantools for retainer inventory counts");
             return 0;

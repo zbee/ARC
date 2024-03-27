@@ -44,6 +44,9 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
         IClientState clientState, IChatGui chatGui, ICommandManager commandManager, ITextureProvider textureProvider,
         IPluginLog pluginLog)
     {
+        ArgumentNullException.ThrowIfNull(pluginInterface);
+        ArgumentNullException.ThrowIfNull(dataManager);
+
         _pluginInterface = pluginInterface;
         _clientState = clientState;
         _chatGui = chatGui;
@@ -226,28 +229,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
                     }
                     else
                     {
-                        _chatGui.Print(
-                            new SeString(new UIForegroundPayload(579))
-                                .Append(SeIconChar.Collectible.ToIconString())
-                                .Append(new UIForegroundPayload(0))
-                                .Append($" Sending retainer ")
-                                .Append(new UIForegroundPayload(1))
-                                .Append(retainerName)
-                                .Append(new UIForegroundPayload(0))
-                                .Append(" to collect ")
-                                .Append(new UIForegroundPayload(1))
-                                .Append($"{reward.Quantity}x ")
-                                .Append(new ItemPayload(venture.ItemId))
-                                .Append(venture.Name)
-                                .Append(RawPayload.LinkTerminator)
-                                .Append(new UIForegroundPayload(0))
-                                .Append(" for ")
-                                .Append(new UIForegroundPayload(1))
-                                .Append($"{list.Name} {list.GetIcon()}")
-                                .Append(new UIForegroundPayload(0))
-                                .Append("."));
-                        _pluginLog.Information(
-                            $"Setting AR to use venture {venture.RowId}, which should retrieve {reward.Quantity}x {venture.Name}");
+                        PrintNextVentureMessage(retainerName, venture, reward, list);
 
                         if (!dryRun)
                         {
@@ -272,21 +254,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
         // fallback: managed but no venture found/
         if (retainer.LastVenture != QuickVentureId)
         {
-            _chatGui.Print(
-                new SeString(new UIForegroundPayload(579))
-                    .Append(SeIconChar.Collectible.ToIconString())
-                    .Append(new UIForegroundPayload(0))
-                    .Append($" No tasks left for retainer ")
-                    .Append(new UIForegroundPayload(1))
-                    .Append(retainerName)
-                    .Append(new UIForegroundPayload(0))
-                    .Append(", sending to ")
-                    .Append(new UIForegroundPayload(1))
-                    .Append("Quick Venture")
-                    .Append(new UIForegroundPayload(0))
-                    .Append("."));
-            _pluginLog.Information($"No tasks left (previous venture = {retainer.LastVenture}), using QV");
-
+            PrintEndOfListMessage(retainerName, retainer);
             if (!dryRun)
             {
                 retainer.HasVenture = true;
@@ -308,6 +276,50 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
             _pluginLog.Information("Not changing venture, already a quick venture");
             return null;
         }
+    }
+
+    private void PrintNextVentureMessage(string retainerName, Venture venture, VentureReward reward, Configuration.ItemList list)
+    {
+        _chatGui.Print(
+            new SeString(new UIForegroundPayload(579))
+                .Append(SeIconChar.Collectible.ToIconString())
+                .Append(new UIForegroundPayload(0))
+                .Append($" Sending retainer ")
+                .Append(new UIForegroundPayload(1))
+                .Append(retainerName)
+                .Append(new UIForegroundPayload(0))
+                .Append(" to collect ")
+                .Append(new UIForegroundPayload(1))
+                .Append($"{reward.Quantity}x ")
+                .Append(new ItemPayload(venture.ItemId))
+                .Append(venture.Name)
+                .Append(RawPayload.LinkTerminator)
+                .Append(new UIForegroundPayload(0))
+                .Append(" for ")
+                .Append(new UIForegroundPayload(1))
+                .Append($"{list.Name} {list.GetIcon()}")
+                .Append(new UIForegroundPayload(0))
+                .Append("."));
+        _pluginLog.Information(
+            $"Setting AR to use venture {venture.RowId}, which should retrieve {reward.Quantity}x {venture.Name}");
+    }
+
+    private void PrintEndOfListMessage(string retainerName, Configuration.RetainerConfiguration retainer)
+    {
+        _chatGui.Print(
+            new SeString(new UIForegroundPayload(579))
+                .Append(SeIconChar.Collectible.ToIconString())
+                .Append(new UIForegroundPayload(0))
+                .Append($" No tasks left for retainer ")
+                .Append(new UIForegroundPayload(1))
+                .Append(retainerName)
+                .Append(new UIForegroundPayload(0))
+                .Append(", sending to ")
+                .Append(new UIForegroundPayload(1))
+                .Append("Quick Venture")
+                .Append(new UIForegroundPayload(0))
+                .Append("."));
+        _pluginLog.Information($"No tasks left (previous venture = {retainer.LastVenture}), using QV");
     }
 
     /// <remarks>
@@ -378,7 +390,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
     {
         if (arguments == "sync")
             Sync();
-        else if (arguments.StartsWith("dnv"))
+        else if (arguments.StartsWith("dnv", StringComparison.Ordinal))
         {
             var ch = _configuration.Characters.SingleOrDefault(x => x.LocalContentId == _clientState.LocalContentId);
             if (ch == null || ch.Type == Configuration.CharacterType.NotManaged || ch.Retainers.Count == 0)
