@@ -31,7 +31,7 @@ internal sealed class ConfigWindow : LWindow
     private static readonly Vector4 ColorGreen = ImGuiColors.HealerGreen;
     private static readonly Vector4 ColorRed = ImGuiColors.DalamudRed;
     private static readonly Vector4 ColorGrey = ImGuiColors.DalamudGrey;
-    private static readonly string[] StockingTypeLabels = { "Collect Once", "Keep in Stock" };
+    private static readonly string[] StockingTypeLabels = ["Collect Once", "Keep in Stock"];
 
     private static readonly string[] PriorityLabels =
         { "Collect in order of the list", "Collect item with lowest inventory first" };
@@ -51,6 +51,8 @@ internal sealed class ConfigWindow : LWindow
 
     private readonly Dictionary<Guid, TemporaryConfig> _currentEditPopups = new();
     private string _searchString = string.Empty;
+    private float _mainIndentSize = 1;
+    private float _mainIconSize = 23;
     private TemporaryConfig _newGroup = new() { Name = string.Empty };
 
     private TemporaryConfig _newList = new()
@@ -92,18 +94,26 @@ internal sealed class ConfigWindow : LWindow
     {
         if (ImGui.BeginTabBar("ARConfigTabs"))
         {
+            ImGui.PushFont(UiBuilder.IconFont);
+            _mainIndentSize = ImGui.CalcTextSize(FontAwesomeIcon.Cog.ToIconString()).X +
+                ImGui.GetStyle().FramePadding.X * 2f +
+                ImGui.GetStyle().ItemSpacing.X - ImGui.GetStyle().WindowPadding.X / 2;
+            ImGui.PopFont();
+            _mainIconSize = ImGui.CalcTextSize("X").Y + ImGui.GetStyle().FramePadding.Y * 2;
+
             DrawVentureLists();
             DrawCharacterGroups();
             DrawCharacters();
             DrawGatheredItemsToCheck();
             DrawMiscTab();
+
             ImGui.EndTabBar();
         }
     }
 
     private void DrawVentureLists()
     {
-        if (ImGui.BeginTabItem("Venture Lists"))
+        if (ImGui.BeginTabItem("Venture Lists###TabVentureLists"))
         {
             Configuration.ItemList? listToDelete = null;
             IReadOnlySet<uint> itemsToDiscard = _discardHelperIpc.GetItemsToDiscard();
@@ -131,9 +141,9 @@ internal sealed class ConfigWindow : LWindow
 
                 if (ImGui.CollapsingHeader(label))
                 {
-                    ImGui.Indent(30);
+                    ImGui.Indent(_mainIndentSize);
                     DrawVentureListItemSelection(list, itemsToDiscard);
-                    ImGui.Unindent(30);
+                    ImGui.Unindent(_mainIndentSize);
                 }
 
                 ImGui.PopID();
@@ -375,7 +385,6 @@ internal sealed class ConfigWindow : LWindow
         Configuration.QueuedItem? itemToRemove = null;
         Configuration.QueuedItem? itemToAdd = null;
         int indexToAdd = 0;
-        float windowX = ImGui.GetContentRegionAvail().X;
         for (int i = 0; i < list.Items.Count; ++i)
         {
             var item = list.Items[i];
@@ -399,11 +408,11 @@ internal sealed class ConfigWindow : LWindow
             IDalamudTextureWrap? icon = _iconCache.GetIcon(venture.IconId);
             if (icon != null)
             {
-                ImGui.Image(icon.ImGuiHandle, new Vector2(23, 23));
+                ImGui.Image(icon.ImGuiHandle, new Vector2(_mainIconSize, _mainIconSize));
                 ImGui.SameLine(0, 3);
             }
 
-            ImGui.SetNextItemWidth(130);
+            ImGui.SetNextItemWidth(130 * ImGuiHelpers.GlobalScale);
             int quantity = item.RemainingQuantity;
             if (ImGui.InputInt($"{venture.Name} ({string.Join(" ", ventures.Select(x => x.CategoryName))})",
                     ref quantity, 100))
@@ -416,7 +425,16 @@ internal sealed class ConfigWindow : LWindow
             {
                 bool wrap = _configuration.ConfigUiOptions.WrapAroundWhenReordering;
 
-                ImGui.SameLine(windowX - 31);
+                ImGui.PushFont(UiBuilder.IconFont);
+                ImGui.SameLine(ImGui.GetContentRegionAvail().X +
+                               _mainIndentSize +
+                               ImGui.GetStyle().WindowPadding.X -
+                               ImGui.CalcTextSize(FontAwesomeIcon.ArrowUp.ToIconString()).X -
+                               ImGui.CalcTextSize(FontAwesomeIcon.ArrowDown.ToIconString()).X -
+                               ImGui.CalcTextSize(FontAwesomeIcon.Times.ToIconString()).X -
+                               ImGui.GetStyle().FramePadding.X * 6 -
+                               ImGui.GetStyle().ItemSpacing.X);
+                ImGui.PopFont();
                 ImGui.BeginDisabled(i == 0 && !wrap);
                 if (ImGuiComponents.IconButton($"##Up{i}", FontAwesomeIcon.ArrowUp))
                 {
@@ -444,7 +462,15 @@ internal sealed class ConfigWindow : LWindow
                 ImGui.SameLine();
             }
             else
-                ImGui.SameLine(windowX + 19);
+            {
+                ImGui.PushFont(UiBuilder.IconFont);
+                ImGui.SameLine(ImGui.GetContentRegionAvail().X +
+                               _mainIndentSize +
+                               ImGui.GetStyle().WindowPadding.X -
+                               ImGui.CalcTextSize(FontAwesomeIcon.Times.ToIconString()).X -
+                               ImGui.GetStyle().FramePadding.X * 2);
+                ImGui.PopFont();
+            }
 
             if (ImGuiComponents.IconButton($"##Remove{i}", FontAwesomeIcon.Times))
                 itemToRemove = item;
@@ -575,7 +601,7 @@ internal sealed class ConfigWindow : LWindow
 
     private void DrawCharacters()
     {
-        if (ImGui.BeginTabItem("Retainers"))
+        if (ImGui.BeginTabItem("Retainers###TabRetainers"))
         {
             foreach (var world in _configuration.Characters
                          .Where(x => x.Retainers.Any(y => y.Job != 0))
@@ -589,7 +615,7 @@ internal sealed class ConfigWindow : LWindow
                     ImGui.PushID($"Char{character.LocalContentId}");
 
                     ImGui.SetNextItemWidth(ImGui.GetFontSize() * 30);
-                    Vector4 buttonColor = new Vector4();
+                    Vector4 buttonColor = ImGui.ColorConvertU32ToFloat4(ImGui.GetColorU32(ImGuiCol.FrameBg));
                     if (character is { Type: not Configuration.CharacterType.NotManaged, Retainers.Count: > 0 })
                     {
                         if (character.Retainers.All(x => x.Managed))
@@ -621,7 +647,7 @@ internal sealed class ConfigWindow : LWindow
                     if (ImGui.CollapsingHeader(
                             $"{character.CharacterName} {(character.Type != Configuration.CharacterType.NotManaged ? $"({character.Retainers.Count(x => x.Managed)} / {character.Retainers.Count})" : "")}###{character.LocalContentId}"))
                     {
-                        ImGui.Indent(30);
+                        ImGui.Indent(_mainIndentSize);
 
                         List<(Guid Id, string Name)> groups =
                             new List<(Guid Id, string Name)> { (Guid.Empty, "No Group (manually assign lists)") }
@@ -657,9 +683,8 @@ internal sealed class ConfigWindow : LWindow
                                 ImGui.Separator();
                                 if (groupIndex == 0)
                                 {
-                                    // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
-                                    if (character.ItemListIds == null)
-                                        character.ItemListIds = new();
+                                    // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
+                                    character.ItemListIds ??= new();
                                     DrawVentureListSelection(
                                         character.LocalContentId.ToString(CultureInfo.InvariantCulture),
                                         character.ItemListIds);
@@ -667,7 +692,7 @@ internal sealed class ConfigWindow : LWindow
                                 else
                                 {
                                     ImGui.TextWrapped($"Retainers will participate in the following lists:");
-                                    ImGui.Indent(30);
+                                    ImGui.Indent(_mainIndentSize);
 
                                     var group = _configuration.CharacterGroups.Single(
                                         x => x.Id == groups[groupIndex].Id);
@@ -685,7 +710,7 @@ internal sealed class ConfigWindow : LWindow
                                     else
                                         ImGui.TextColored(ImGuiColors.DalamudRed, "(None)");
 
-                                    ImGui.Unindent(30);
+                                    ImGui.Unindent(_mainIndentSize);
                                     ImGui.Spacing();
                                 }
 
@@ -700,13 +725,13 @@ internal sealed class ConfigWindow : LWindow
                                 {
                                     ImGui.BeginDisabled(retainer.Level < MinLevel);
 
-                                    bool managed = retainer.Managed && retainer.Level >= MinLevel;
+                                    bool managed = retainer is { Managed: true, Level: >= MinLevel };
 
                                     IDalamudTextureWrap? icon = _iconCache.GetIcon(62000 + retainer.Job);
                                     if (icon != null)
                                     {
-                                        ImGui.Image(icon.ImGuiHandle, new Vector2(23, 23));
-                                        ImGui.SameLine();
+                                        ImGui.Image(icon.ImGuiHandle, new Vector2(_mainIconSize, _mainIconSize));
+                                        ImGui.SameLine(0, 3);
                                     }
 
                                     if (ImGui.Checkbox(
@@ -727,7 +752,7 @@ internal sealed class ConfigWindow : LWindow
                         }
 
 
-                        ImGui.Unindent(30);
+                        ImGui.Unindent(_mainIndentSize);
                     }
 
                     ImGui.PopID();
@@ -740,7 +765,7 @@ internal sealed class ConfigWindow : LWindow
 
     private void DrawCharacterGroups()
     {
-        if (ImGui.BeginTabItem("Groups"))
+        if (ImGui.BeginTabItem("Groups###TabGroups"))
         {
             Configuration.CharacterGroup? groupToDelete = null;
             foreach (var group in _configuration.CharacterGroups)
@@ -835,7 +860,7 @@ internal sealed class ConfigWindow : LWindow
             : $"{assignedCharacters.Count} characters";
         if (ImGui.CollapsingHeader($"{group.Name} ({countLabel})"))
         {
-            ImGui.Indent(30);
+            ImGui.Indent(_mainIndentSize);
             if (ImGui.BeginTabBar("GroupOptions"))
             {
                 if (ImGui.BeginTabItem("Venture Lists"))
@@ -847,17 +872,18 @@ internal sealed class ConfigWindow : LWindow
                 if (ImGui.BeginTabItem("Characters"))
                 {
                     ImGui.Text("Characters in this group:");
-                    ImGui.Indent(30);
+                    ImGui.Indent(_mainIndentSize);
                     foreach (var character in assignedCharacters.OrderBy(x => x.WorldName)
                                  .ThenBy(x => x.LocalContentId))
                         ImGui.TextUnformatted($"{character.CharacterName} @ {character.WorldName}");
-                    ImGui.Unindent(30);
+                    ImGui.Unindent(_mainIndentSize);
+                    ImGui.EndTabItem();
                 }
 
                 ImGui.EndTabBar();
             }
 
-            ImGui.Unindent(30);
+            ImGui.Unindent(_mainIndentSize);
         }
     }
 
@@ -920,7 +946,7 @@ internal sealed class ConfigWindow : LWindow
 
     private void DrawGatheredItemsToCheck()
     {
-        if (ImGui.BeginTabItem("Locked Items"))
+        if (ImGui.BeginTabItem("Locked Items###TabLockedItems"))
         {
             bool checkPerCharacter = _configuration.ConfigUiOptions.CheckGatheredItemsPerCharacter;
             if (ImGui.Checkbox("Group by character", ref checkPerCharacter))
@@ -989,7 +1015,7 @@ internal sealed class ConfigWindow : LWindow
 
                     if (expanded)
                     {
-                        ImGui.Indent(30);
+                        ImGui.Indent(_mainIndentSize + ImGui.GetStyle().FramePadding.X);
                         foreach (var item in itemsToCheck.Where(x =>
                                      ch.ToCheck(onlyShowMissing).ContainsKey(x.ItemId)))
                         {
@@ -1022,7 +1048,7 @@ internal sealed class ConfigWindow : LWindow
                             }
                         }
 
-                        ImGui.Unindent(30);
+                        ImGui.Unindent(_mainIndentSize + ImGui.GetStyle().FramePadding.X);
                     }
                 }
             }
@@ -1033,7 +1059,7 @@ internal sealed class ConfigWindow : LWindow
                 {
                     if (ImGui.CollapsingHeader($"{item.GatheredItem.Name}##Gathered{item.GatheredItem.ItemId}"))
                     {
-                        ImGui.Indent(30);
+                        ImGui.Indent(_mainIndentSize + ImGui.GetStyle().FramePadding.X);
                         foreach (var ch in charactersToCheck)
                         {
                             var color = ch.Items[item.ItemId];
@@ -1059,7 +1085,7 @@ internal sealed class ConfigWindow : LWindow
                             }
                         }
 
-                        ImGui.Unindent(30);
+                        ImGui.Unindent(_mainIndentSize + ImGui.GetStyle().FramePadding.X);
                     }
                 }
             }
@@ -1087,14 +1113,20 @@ internal sealed class ConfigWindow : LWindow
         int? itemToRemove = null;
         int? itemToAdd = null;
         int indexToAdd = 0;
-        float windowX = ImGui.GetContentRegionAvail().X;
         for (int i = 0; i < selectedLists.Count; ++i)
         {
             ImGui.PushID($"##{id}_Item{i}");
             var listId = selectedLists[i];
             var listIndex = itemLists.FindIndex(x => x.Id == listId);
 
-            ImGui.SetNextItemWidth(windowX - 76);
+            ImGui.PushFont(UiBuilder.IconFont);
+            ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X -
+                                                  ImGui.CalcTextSize(FontAwesomeIcon.ArrowUp.ToIconString()).X -
+                                                  ImGui.CalcTextSize(FontAwesomeIcon.ArrowDown.ToIconString()).X -
+                                                  ImGui.CalcTextSize(FontAwesomeIcon.Times.ToIconString()).X -
+                                                  ImGui.GetStyle().FramePadding.X * 6 -
+                                                  ImGui.GetStyle().ItemSpacing.X * 2);
+            ImGui.PopFont();
             if (ImGui.Combo("", ref listIndex, itemLists.Select(x => x.Name).ToArray(), itemLists.Count))
             {
                 selectedLists[i] = itemLists[listIndex].Id;
@@ -1144,14 +1176,14 @@ internal sealed class ConfigWindow : LWindow
             {
                 if (selectedLists.Take(i).Any(x => x == listId))
                 {
-                    ImGui.Indent(30);
+                    ImGui.Indent(_mainIndentSize);
                     ImGui.TextColored(ImGuiColors.DalamudYellow, "This entry is a duplicate and will be ignored.");
-                    ImGui.Unindent(30);
+                    ImGui.Unindent(_mainIndentSize);
                 }
                 else if (_configuration.ConfigUiOptions.ShowVentureListContents)
                 {
                     var list = itemLists[listIndex].List;
-                    ImGui.Indent(30);
+                    ImGui.Indent(_mainIndentSize);
                     ImGui.Text(list.Type == Configuration.ListType.CollectOneTime
                         ? "Items on this list will be collected once."
                         : "Items on this list will be kept in stock on each character.");
@@ -1162,7 +1194,7 @@ internal sealed class ConfigWindow : LWindow
                         ImGui.Text($"{item.RemainingQuantity}x {venture.Name}");
                     }
 
-                    ImGui.Unindent(30);
+                    ImGui.Unindent(_mainIndentSize);
                 }
             }
 
@@ -1209,7 +1241,7 @@ internal sealed class ConfigWindow : LWindow
 
     private void DrawMiscTab()
     {
-        if (ImGui.BeginTabItem("Misc"))
+        if (ImGui.BeginTabItem("Misc###TabMisc"))
         {
             ImGui.Text("Venture Settings");
             ImGui.Spacing();
