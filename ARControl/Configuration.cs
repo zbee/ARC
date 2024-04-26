@@ -122,5 +122,6 @@ internal sealed class Configuration : IPluginConfiguration
         public bool CheckGatheredItemsPerCharacter { get; set; }
         public bool OnlyShowMissingGatheredItems { get; set; }
         public bool WrapAroundWhenReordering { get; set; }
+        public bool ShowAssignmentChatMessages { get; set; } = true;
     }
 }

@@ -229,7 +229,8 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
                     }
                     else
                     {
-                        PrintNextVentureMessage(retainerName, venture, reward, list);
+                        if (_configuration.ConfigUiOptions.ShowAssignmentChatMessages || dryRun)
+                            PrintNextVentureMessage(retainerName, venture, reward, list);
 
                         if (!dryRun)
                         {

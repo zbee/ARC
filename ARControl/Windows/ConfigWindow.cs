@@ -1119,11 +1119,11 @@ internal sealed class ConfigWindow : LWindow
 
             ImGui.PushFont(UiBuilder.IconFont);
             ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X -
-                                                  ImGui.CalcTextSize(FontAwesomeIcon.ArrowUp.ToIconString()).X -
-                                                  ImGui.CalcTextSize(FontAwesomeIcon.ArrowDown.ToIconString()).X -
-                                                  ImGui.CalcTextSize(FontAwesomeIcon.Times.ToIconString()).X -
-                                                  ImGui.GetStyle().FramePadding.X * 6 -
-                                                  ImGui.GetStyle().ItemSpacing.X * 2);
+                                   ImGui.CalcTextSize(FontAwesomeIcon.ArrowUp.ToIconString()).X -
+                                   ImGui.CalcTextSize(FontAwesomeIcon.ArrowDown.ToIconString()).X -
+                                   ImGui.CalcTextSize(FontAwesomeIcon.Times.ToIconString()).X -
+                                   ImGui.GetStyle().FramePadding.X * 6 -
+                                   ImGui.GetStyle().ItemSpacing.X * 2);
             ImGui.PopFont();
             if (ImGui.Combo("", ref listIndex, itemLists.Select(x => x.Name).ToArray(), itemLists.Count))
             {
@@ -1261,6 +1261,14 @@ internal sealed class ConfigWindow : LWindow
             ImGui.Spacing();
 
             ImGui.Text("User Interface Settings");
+
+            bool showAssignmentChatMessages = _configuration.ConfigUiOptions.ShowAssignmentChatMessages;
+            if (ImGui.Checkbox("Show chat message when assigning a venture to a retainer",
+                    ref showAssignmentChatMessages))
+            {
+                _configuration.ConfigUiOptions.ShowAssignmentChatMessages = showAssignmentChatMessages;
+                Save();
+            }
 
             bool showContents = _configuration.ConfigUiOptions.ShowVentureListContents;
             if (ImGui.Checkbox("Show Venture List preview in Groups/Retainer tabs", ref showContents))
