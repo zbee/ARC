@@ -39,10 +39,11 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
     private readonly AllaganToolsIpc _allaganToolsIpc;
     private readonly ConfigWindow _configWindow;
     private readonly AutoRetainerApi _autoRetainerApi;
+    private readonly AutoRetainerReflection _autoRetainerReflection;
 
     public AutoRetainerControlPlugin(DalamudPluginInterface pluginInterface, IDataManager dataManager,
         IClientState clientState, IChatGui chatGui, ICommandManager commandManager, ITextureProvider textureProvider,
-        IPluginLog pluginLog)
+        IFramework framework, IPluginLog pluginLog)
     {
         ArgumentNullException.ThrowIfNull(pluginInterface);
         ArgumentNullException.ThrowIfNull(dataManager);
@@ -67,6 +68,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
 
         ECommonsMain.Init(_pluginInterface, this);
         _autoRetainerApi = new();
+        _autoRetainerReflection = new AutoRetainerReflection(pluginInterface, framework, pluginLog, _autoRetainerApi);
 
         _pluginInterface.UiBuilder.Draw += _windowSystem.Draw;
         _pluginInterface.UiBuilder.OpenConfigUi += _configWindow.Toggle;
@@ -102,6 +104,12 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
 
     private unsafe uint? GetNextVenture(string retainerName, bool dryRun)
     {
+        if (!_autoRetainerReflection.ShouldReassign)
+        {
+            _pluginLog.Information("AutoRetainer is configured to not reassign ventures, so we are not checking any venture lists.");
+            return null;
+        }
+
         var ch = _configuration.Characters.SingleOrDefault(x => x.LocalContentId == _clientState.LocalContentId);
         if (ch == null)
         {
@@ -442,6 +450,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
         _pluginInterface.UiBuilder.Draw -= _windowSystem.Draw;
 
         _iconCache.Dispose();
+        _autoRetainerReflection.Dispose();
         _autoRetainerApi.Dispose();
         ECommonsMain.Dispose();
     }
