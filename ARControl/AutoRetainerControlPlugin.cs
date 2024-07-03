@@ -26,7 +26,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
     private const int QuickVentureId = 395;
     private readonly WindowSystem _windowSystem = new(nameof(AutoRetainerControlPlugin));
 
-    private readonly DalamudPluginInterface _pluginInterface;
+    private readonly IDalamudPluginInterface _pluginInterface;
     private readonly IClientState _clientState;
     private readonly IChatGui _chatGui;
     private readonly ICommandManager _commandManager;
@@ -41,7 +41,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
     private readonly AutoRetainerApi _autoRetainerApi;
     private readonly AutoRetainerReflection _autoRetainerReflection;
 
-    public AutoRetainerControlPlugin(DalamudPluginInterface pluginInterface, IDataManager dataManager,
+    public AutoRetainerControlPlugin(IDalamudPluginInterface pluginInterface, IDataManager dataManager,
         IClientState clientState, IChatGui chatGui, ICommandManager commandManager, ITextureProvider textureProvider,
         IFramework framework, IPluginLog pluginLog)
     {

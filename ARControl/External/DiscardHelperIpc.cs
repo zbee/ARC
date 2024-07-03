@@ -10,7 +10,7 @@ internal sealed class DiscardHelperIpc
 {
     private readonly ICallGateSubscriber<IReadOnlySet<uint>> _itemsToDiscard;
 
-    public DiscardHelperIpc(DalamudPluginInterface pluginInterface)
+    public DiscardHelperIpc(IDalamudPluginInterface pluginInterface)
     {
         _itemsToDiscard = pluginInterface.GetIpcSubscriber<IReadOnlySet<uint>>("ARDiscard.GetItemsToDiscard");
     }

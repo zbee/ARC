@@ -14,7 +14,7 @@ namespace ARControl.External
         private readonly AutoRetainerApi _autoRetainerApi;
         private readonly DalamudReflector _reflector;
 
-        public AutoRetainerReflection(DalamudPluginInterface pluginInterface, IFramework framework,
+        public AutoRetainerReflection(IDalamudPluginInterface pluginInterface, IFramework framework,
             IPluginLog pluginLog, AutoRetainerApi autoRetainerApi)
         {
             _pluginLog = pluginLog;

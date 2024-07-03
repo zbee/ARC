@@ -11,7 +11,7 @@ using Dalamud.Game.Text;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
-using Dalamud.Interface.Internal;
+using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Utility;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
@@ -40,7 +40,7 @@ internal sealed class ConfigWindow : LWindow
     private static readonly string CurrentCharPrefix = FontAwesomeIcon.Male.ToIconString();
     private static readonly string DiscardWarningPrefix = FontAwesomeIcon.ExclamationCircle.ToIconString();
 
-    private readonly DalamudPluginInterface _pluginInterface;
+    private readonly IDalamudPluginInterface _pluginInterface;
     private readonly Configuration _configuration;
     private readonly GameCache _gameCache;
     private readonly IClientState _clientState;
@@ -63,7 +63,7 @@ internal sealed class ConfigWindow : LWindow
     };
 
     public ConfigWindow(
-        DalamudPluginInterface pluginInterface,
+        IDalamudPluginInterface pluginInterface,
         Configuration configuration,
         GameCache gameCache,
         IClientState clientState,
@@ -352,6 +352,8 @@ internal sealed class ConfigWindow : LWindow
                     ImGui.Image(icon.ImGuiHandle, new Vector2(23, 23));
                     ImGui.SameLine();
                     ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 3);
+
+                    icon.Dispose();
                 }
 
                 bool addThis = ImGui.Selectable(
