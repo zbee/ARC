@@ -515,7 +515,6 @@ internal sealed class ConfigWindow : LWindow
                     list.Items.Add(item);
             }
 
-            ImGui.SetClipboardText(null);
             Save();
         }
 
