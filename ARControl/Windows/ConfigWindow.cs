@@ -1,10 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Text.RegularExpressions;
 using ARControl.External;
 using ARControl.GameData;
 using ARControl.Windows.Config;
@@ -12,13 +9,10 @@ using Dalamud.Game.Text;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
-using Dalamud.Interface.Textures.TextureWraps;
-using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using ECommons;
-using ECommons.ImGuiMethods;
 using ImGuiNET;
 using LLib;
 using LLib.ImGui;
@@ -37,6 +31,7 @@ internal sealed class ConfigWindow : LWindow
     private readonly List<ITab> _tabs;
 
     private bool _shouldSave;
+    private (string, int)? _draggedItem;
 
     public ConfigWindow(
         IDalamudPluginInterface pluginInterface,
@@ -113,18 +108,24 @@ internal sealed class ConfigWindow : LWindow
         int? itemToRemove = null;
         int? itemToAdd = null;
         int indexToAdd = 0;
+
+        float width = ImGui.GetContentRegionAvail().X;
+        List<(Vector2 TopLeft, Vector2 BottomRight)> itemPositions = [];
+
         for (int i = 0; i < selectedLists.Count; ++i)
         {
+            Vector2 topLeft = ImGui.GetCursorScreenPos() +
+                              new Vector2(-MainIndentSize, -ImGui.GetStyle().ItemSpacing.Y / 2);
+
             ImGui.PushID($"##{id}_Item{i}");
             var listId = selectedLists[i];
             var listIndex = itemLists.FindIndex(x => x.Id == listId);
 
             ImGui.PushFont(UiBuilder.IconFont);
             ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X -
-                                   ImGui.CalcTextSize(FontAwesomeIcon.ArrowUp.ToIconString()).X -
-                                   ImGui.CalcTextSize(FontAwesomeIcon.ArrowDown.ToIconString()).X -
+                                   ImGui.CalcTextSize(FontAwesomeIcon.ArrowsUpDown.ToIconString()).X -
                                    ImGui.CalcTextSize(FontAwesomeIcon.Times.ToIconString()).X -
-                                   ImGui.GetStyle().FramePadding.X * 6 -
+                                   ImGui.GetStyle().FramePadding.X * 4 -
                                    ImGui.GetStyle().ItemSpacing.X * 2);
             ImGui.PopFont();
             if (ImGui.Combo("", ref listIndex, itemLists.Select(x => x.Name).ToArray(), itemLists.Count))
@@ -135,33 +136,19 @@ internal sealed class ConfigWindow : LWindow
 
             if (selectedLists.Count > 1)
             {
-                bool wrap = _configuration.ConfigUiOptions.WrapAroundWhenReordering;
-
                 ImGui.SameLine();
-                ImGui.BeginDisabled(i == 0 && !wrap);
-                if (ImGuiComponents.IconButton($"##Up{i}", FontAwesomeIcon.ArrowUp))
+
+                if (_draggedItem != null && _draggedItem.Value.Item1 == id && _draggedItem.Value.Item2 == i)
                 {
-                    itemToAdd = i;
-                    if (i > 0)
-                        indexToAdd = i - 1;
-                    else
-                        indexToAdd = selectedLists.Count - 1;
+                    ImGuiComponents.IconButton("##Move", FontAwesomeIcon.ArrowsUpDown,
+                        ImGui.ColorConvertU32ToFloat4(ImGui.GetColorU32(ImGuiCol.ButtonActive)));
                 }
+                else
+                    ImGuiComponents.IconButton("##Move", FontAwesomeIcon.ArrowsUpDown);
 
-                ImGui.EndDisabled();
+                if (_draggedItem == null && ImGui.IsItemActive() && ImGui.IsMouseDragging(ImGuiMouseButton.Left))
+                    _draggedItem = (id, i);
 
-                ImGui.SameLine(0, 0);
-                ImGui.BeginDisabled(i == selectedLists.Count - 1 && !wrap);
-                if (ImGuiComponents.IconButton($"##Down{i}", FontAwesomeIcon.ArrowDown))
-                {
-                    itemToAdd = i;
-                    if (i < selectedLists.Count - 1)
-                        indexToAdd = i + 1;
-                    else
-                        indexToAdd = 0;
-                }
-
-                ImGui.EndDisabled();
                 ImGui.SameLine();
             }
             else
@@ -199,6 +186,32 @@ internal sealed class ConfigWindow : LWindow
             }
 
             ImGui.PopID();
+
+            Vector2 bottomRight = new Vector2(topLeft.X + width + MainIndentSize,
+                ImGui.GetCursorScreenPos().Y - ImGui.GetStyle().ItemSpacing.Y + 2);
+            //ImGui.GetWindowDrawList().AddRect(topLeft, bottomRight, ImGui.GetColorU32(i % 2 == 0 ? ImGuiColors.DalamudRed : ImGuiColors.HealerGreen));
+            itemPositions.Add((topLeft, bottomRight));
+        }
+
+        if (!ImGui.IsMouseDragging(ImGuiMouseButton.Left))
+            _draggedItem = null;
+        else if (_draggedItem != null && _draggedItem.Value.Item1 == id)
+        {
+            int oldIndex = _draggedItem.Value.Item2;
+            var draggedItem = selectedLists[oldIndex];
+
+            var (topLeft, bottomRight) = itemPositions[oldIndex];
+            topLeft += new Vector2(MainIndentSize, 0);
+            ImGui.GetWindowDrawList().AddRect(topLeft, bottomRight, ImGui.GetColorU32(ImGuiColors.DalamudGrey), 3f, ImDrawFlags.RoundCornersAll);
+
+            int newIndex = itemPositions.IndexOf(x => ImGui.IsMouseHoveringRect(x.TopLeft, x.BottomRight, true));
+            if (newIndex >= 0 && oldIndex != newIndex)
+            {
+                itemToAdd = _draggedItem.Value.Item2;
+                indexToAdd = newIndex;
+
+                _draggedItem = (_draggedItem.Value.Item1, newIndex);
+            }
         }
 
         if (itemToRemove != null)
@@ -246,29 +259,4 @@ internal sealed class ConfigWindow : LWindow
     }
 
     public void ShouldSave() => _shouldSave = true;
-
-    internal DragDropData CalculateDragDropData(int itemCount)
-    {
-        float yDelta = ImGui.GetFrameHeight() + ImGui.GetStyle().ItemSpacing.Y;
-        var firstCursorPos = ImGui.GetCursorScreenPos() +
-                             new Vector2(-MainIndentSize, -ImGui.GetStyle().ItemSpacing.Y / 2);
-        var lastCursorPos = new Vector2(
-            firstCursorPos.X + MainIndentSize + ImGui.GetContentRegionAvail().X,
-            firstCursorPos.Y + yDelta * itemCount);
-
-        List<(Vector2 TopLeft, Vector2 BottomRight)> itemPositions = [];
-        for (int i = 0; i < itemCount; ++i)
-        {
-            Vector2 left = firstCursorPos;
-            Vector2 right = lastCursorPos with { Y = firstCursorPos.Y + yDelta - 1 };
-            itemPositions.Add((left, right));
-
-            firstCursorPos.Y += yDelta;
-            lastCursorPos.Y += yDelta;
-        }
-
-        return new DragDropData(itemPositions);
-    }
-
-    internal sealed record DragDropData(List<(Vector2 TopLeft, Vector2 BottomRight)> ItemPositions);
 }

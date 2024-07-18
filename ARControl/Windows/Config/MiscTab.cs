@@ -57,15 +57,5 @@ internal sealed class MiscTab : ITab
             _configuration.ConfigUiOptions.ShowVentureListContents = showContents;
             _configWindow.ShouldSave();
         }
-
-        bool wrapAroundWhenReordering = _configuration.ConfigUiOptions.WrapAroundWhenReordering;
-        if (ImGui.Checkbox("Allow sorting with up/down arrows to wrap around", ref wrapAroundWhenReordering))
-        {
-            _configuration.ConfigUiOptions.WrapAroundWhenReordering = wrapAroundWhenReordering;
-            _configWindow.ShouldSave();
-        }
-
-        ImGuiComponents.HelpMarker(
-            "When enabled:\n- Clicking the Up-Arrow for the first item in a list, that item will be moved to the bottom.\n- Clicking the Down-Arrow for the last item in the list, that item will be moved to the top.");
     }
 }

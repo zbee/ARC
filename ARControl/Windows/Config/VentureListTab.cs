@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Text.RegularExpressions;
 using ARControl.External;
@@ -15,7 +16,6 @@ using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using ECommons;
 using ECommons.ImGuiMethods;
-using FFXIVClientStructs.FFXIV.Common.Math;
 using ImGuiNET;
 using LLib;
 
@@ -37,7 +37,9 @@ internal sealed class VentureListTab : ITab
     private readonly IconCache _iconCache;
     private readonly DiscardHelperIpc _discardHelperIpc;
     private readonly IPluginLog _pluginLog;
+
     private string _searchString = string.Empty;
+    private (Guid, Guid)? _draggedItem;
 
     private readonly Dictionary<Guid, TemporaryConfig> _currentEditPopups = new();
 
@@ -189,9 +191,14 @@ internal sealed class VentureListTab : ITab
         Configuration.QueuedItem? itemToAdd = null;
         int indexToAdd = 0;
 
-        var dragDropData = _configWindow.CalculateDragDropData(list.Items.Count);
+        float width = ImGui.GetContentRegionAvail().X;
+        List<(Vector2 TopLeft, Vector2 BottomRight)> itemPositions = [];
+
         for (int i = 0; i < list.Items.Count; ++i)
         {
+            Vector2 topLeft = ImGui.GetCursorScreenPos() +
+                              new Vector2(-_configWindow.MainIndentSize, -ImGui.GetStyle().ItemSpacing.Y / 2);
+
             var item = list.Items[i];
             ImGui.PushID($"QueueItem{item.InternalId}");
             var ventures = _gameCache.Ventures.Where(x => x.ItemId == item.ItemId).ToList();
@@ -238,18 +245,16 @@ internal sealed class VentureListTab : ITab
                                ImGui.GetStyle().ItemSpacing.X);
                 ImGui.PopFont();
 
-                ImGuiComponents.IconButton("##Move", FontAwesomeIcon.ArrowsUpDown);
-
-                if (ImGui.IsItemActive() && ImGui.IsMouseDragging(ImGuiMouseButton.Left))
+                if (_draggedItem != null && _draggedItem.Value.Item1 == list.Id && _draggedItem.Value.Item2 == item.InternalId)
                 {
-                    int newIndex = dragDropData.ItemPositions.FindIndex(x =>
-                        ImGui.IsMouseHoveringRect(x.TopLeft, x.BottomRight, true));
-                    if (newIndex != i && newIndex >= 0)
-                    {
-                        indexToAdd = newIndex;
-                        itemToAdd = item;
-                    }
+                    ImGuiComponents.IconButton("##Move", FontAwesomeIcon.ArrowsUpDown,
+                        ImGui.ColorConvertU32ToFloat4(ImGui.GetColorU32(ImGuiCol.ButtonActive)));
                 }
+                else
+                    ImGuiComponents.IconButton("##Move", FontAwesomeIcon.ArrowsUpDown);
+
+                if (_draggedItem == null && ImGui.IsItemActive() && ImGui.IsMouseDragging(ImGuiMouseButton.Left))
+                    _draggedItem = (list.Id, item.InternalId);
 
                 ImGui.SameLine();
             }
@@ -268,6 +273,31 @@ internal sealed class VentureListTab : ITab
                 itemToRemove = item;
 
             ImGui.PopID();
+
+            Vector2 bottomRight = new Vector2(topLeft.X + width + _configWindow.MainIndentSize,
+                ImGui.GetCursorScreenPos().Y - ImGui.GetStyle().ItemSpacing.Y + 2);
+            //ImGui.GetWindowDrawList().AddRect(topLeft, bottomRight, ImGui.GetColorU32(i % 2 == 0 ? ImGuiColors.DalamudRed : ImGuiColors.HealerGreen));
+            itemPositions.Add((topLeft, bottomRight));
+        }
+
+        if (!ImGui.IsMouseDragging(ImGuiMouseButton.Left))
+            _draggedItem = null;
+        else if (_draggedItem != null && _draggedItem.Value.Item1 == list.Id)
+        {
+            var draggedItem = list.Items.Single(x => x.InternalId == _draggedItem.Value.Item2);
+            int oldIndex = list.Items.IndexOf(draggedItem);
+
+            var (topLeft, bottomRight) = itemPositions[oldIndex];
+            if (!itemsToDiscard.Contains(draggedItem.ItemId))
+                topLeft += new Vector2(_configWindow.MainIndentSize, 0);
+            ImGui.GetWindowDrawList().AddRect(topLeft, bottomRight, ImGui.GetColorU32(ImGuiColors.DalamudGrey), 3f, ImDrawFlags.RoundCornersAll);
+
+            int newIndex = itemPositions.IndexOf(x => ImGui.IsMouseHoveringRect(x.TopLeft, x.BottomRight, true));
+            if (newIndex >= 0 && oldIndex != newIndex)
+            {
+                itemToAdd = list.Items.Single(x => x.InternalId == _draggedItem.Value.Item2);
+                indexToAdd = newIndex;
+            }
         }
 
         if (itemToRemove != null)
