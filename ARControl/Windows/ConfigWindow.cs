@@ -50,6 +50,7 @@ internal sealed class ConfigWindow : LWindow
     private readonly IPluginLog _pluginLog;
 
     private readonly Dictionary<Guid, TemporaryConfig> _currentEditPopups = new();
+    private bool _shouldSave;
     private string _searchString = string.Empty;
     private float _mainIndentSize = 1;
     private TemporaryConfig _newGroup = new() { Name = string.Empty };
@@ -104,6 +105,12 @@ internal sealed class ConfigWindow : LWindow
             DrawCharacters();
             DrawGatheredItemsToCheck();
             DrawMiscTab();
+
+            if (_shouldSave && !ImGui.IsMouseDown(ImGuiMouseButton.Left))
+            {
+                _pluginLog.Debug("Triggering delayed save");
+                Save();
+            }
 
             ImGui.EndTabBar();
         }
@@ -312,6 +319,118 @@ internal sealed class ConfigWindow : LWindow
 
     private void DrawVentureListItemSelection(Configuration.ItemList list, IReadOnlySet<uint> itemsToDiscard)
     {
+        DrawVentureListItemFilter(list);
+
+        Configuration.QueuedItem? itemToRemove = null;
+        Configuration.QueuedItem? itemToAdd = null;
+        int indexToAdd = 0;
+
+        var dragDropData = CalculateDragDropData(list.Items.Count);
+        for (int i = 0; i < list.Items.Count; ++i)
+        {
+            var item = list.Items[i];
+            ImGui.PushID($"QueueItem{item.InternalId}");
+            var ventures = _gameCache.Ventures.Where(x => x.ItemId == item.ItemId).ToList();
+            var venture = ventures.First();
+
+            if (itemsToDiscard.Contains(venture.ItemId))
+            {
+                ImGui.PushFont(UiBuilder.IconFont);
+                var pos = ImGui.GetCursorPos();
+                ImGui.SetCursorPos(new Vector2(pos.X - ImGui.CalcTextSize(DiscardWarningPrefix).X - 5, pos.Y + 2));
+                ImGui.TextColored(ImGuiColors.DalamudYellow, DiscardWarningPrefix);
+                ImGui.SetCursorPos(pos);
+                ImGui.PopFont();
+
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip("This item will be automatically discarded by 'Discard Helper'.");
+            }
+
+            IDalamudTextureWrap? icon = _iconCache.GetIcon(venture.IconId);
+            if (icon != null)
+            {
+                ImGui.Image(icon.ImGuiHandle, new Vector2(ImGui.GetFrameHeight()));
+                ImGui.SameLine(0, ImGui.GetStyle().FramePadding.X);
+            }
+
+            ImGui.SetNextItemWidth(130 * ImGuiHelpers.GlobalScale);
+            int quantity = item.RemainingQuantity;
+            if (ImGui.InputInt($"{venture.Name} ({string.Join(" ", ventures.Select(x => x.CategoryName))})",
+                    ref quantity, 100))
+            {
+                item.RemainingQuantity = quantity;
+                Save();
+            }
+
+            if (list.Items.Count > 1)
+            {
+                ImGui.PushFont(UiBuilder.IconFont);
+                ImGui.SameLine(ImGui.GetContentRegionAvail().X +
+                               _mainIndentSize +
+                               ImGui.GetStyle().WindowPadding.X -
+                               ImGui.CalcTextSize(FontAwesomeIcon.ArrowsUpDown.ToIconString()).X -
+                               ImGui.CalcTextSize(FontAwesomeIcon.Times.ToIconString()).X -
+                               ImGui.GetStyle().FramePadding.X * 4 -
+                               ImGui.GetStyle().ItemSpacing.X);
+                ImGui.PopFont();
+
+                ImGuiComponents.IconButton("##Move", FontAwesomeIcon.ArrowsUpDown);
+
+                if (ImGui.IsItemActive() && ImGui.IsMouseDragging(ImGuiMouseButton.Left))
+                {
+                    int newIndex = dragDropData.ItemPositions.FindIndex(x =>
+                        ImGui.IsMouseHoveringRect(x.TopLeft, x.BottomRight, true));
+                    if (newIndex != i && newIndex >= 0)
+                    {
+                        indexToAdd = newIndex;
+                        itemToAdd = item;
+                    }
+                }
+
+                ImGui.SameLine();
+            }
+            else
+            {
+                ImGui.PushFont(UiBuilder.IconFont);
+                ImGui.SameLine(ImGui.GetContentRegionAvail().X +
+                               _mainIndentSize +
+                               ImGui.GetStyle().WindowPadding.X -
+                               ImGui.CalcTextSize(FontAwesomeIcon.Times.ToIconString()).X -
+                               ImGui.GetStyle().FramePadding.X * 2);
+                ImGui.PopFont();
+            }
+
+            if (ImGuiComponents.IconButton($"##Remove{i}", FontAwesomeIcon.Times))
+                itemToRemove = item;
+
+            ImGui.PopID();
+        }
+
+        if (itemToRemove != null)
+        {
+            list.Items.Remove(itemToRemove);
+            Save();
+        }
+
+        if (itemToAdd != null)
+        {
+            _pluginLog.Information($"Updating {itemToAdd.ItemId} → {indexToAdd}");
+            list.Items.Remove(itemToAdd);
+            list.Items.Insert(indexToAdd, itemToAdd);
+            _shouldSave = true;
+        }
+
+        ImGui.Spacing();
+        List<Configuration.QueuedItem> clipboardItems = ParseClipboardItems();
+        ImportFromClipboardButton(list, clipboardItems);
+        RemoveFinishedItemsButton(list);
+
+        ImGui.Spacing();
+    }
+
+    private void DrawVentureListItemFilter(Configuration.ItemList list)
+    {
+
         ImGuiEx.SetNextItemFullWidth();
         if (ImGui.BeginCombo($"##VentureSelection{list.Id}", "Add Venture...", ImGuiComboFlags.HeightLarge))
         {
@@ -379,123 +498,6 @@ internal sealed class ConfigWindow : LWindow
 
             ImGui.EndCombo();
         }
-
-        ImGui.Spacing();
-
-        Configuration.QueuedItem? itemToRemove = null;
-        Configuration.QueuedItem? itemToAdd = null;
-        int indexToAdd = 0;
-        for (int i = 0; i < list.Items.Count; ++i)
-        {
-            var item = list.Items[i];
-            ImGui.PushID($"QueueItem{i}");
-            var ventures = _gameCache.Ventures.Where(x => x.ItemId == item.ItemId).ToList();
-            var venture = ventures.First();
-
-            if (itemsToDiscard.Contains(venture.ItemId))
-            {
-                ImGui.PushFont(UiBuilder.IconFont);
-                var pos = ImGui.GetCursorPos();
-                ImGui.SetCursorPos(new Vector2(pos.X - ImGui.CalcTextSize(DiscardWarningPrefix).X - 5, pos.Y + 2));
-                ImGui.TextColored(ImGuiColors.DalamudYellow, DiscardWarningPrefix);
-                ImGui.SetCursorPos(pos);
-                ImGui.PopFont();
-
-                if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip("This item will be automatically discarded by 'Discard Helper'.");
-            }
-
-            IDalamudTextureWrap? icon = _iconCache.GetIcon(venture.IconId);
-            if (icon != null)
-            {
-                ImGui.Image(icon.ImGuiHandle, new Vector2(ImGui.GetFrameHeight()));
-                ImGui.SameLine(0, ImGui.GetStyle().FramePadding.X);
-            }
-
-            ImGui.SetNextItemWidth(130 * ImGuiHelpers.GlobalScale);
-            int quantity = item.RemainingQuantity;
-            if (ImGui.InputInt($"{venture.Name} ({string.Join(" ", ventures.Select(x => x.CategoryName))})",
-                    ref quantity, 100))
-            {
-                item.RemainingQuantity = quantity;
-                Save();
-            }
-
-            if (list.Items.Count > 1)
-            {
-                bool wrap = _configuration.ConfigUiOptions.WrapAroundWhenReordering;
-
-                ImGui.PushFont(UiBuilder.IconFont);
-                ImGui.SameLine(ImGui.GetContentRegionAvail().X +
-                               _mainIndentSize +
-                               ImGui.GetStyle().WindowPadding.X -
-                               ImGui.CalcTextSize(FontAwesomeIcon.ArrowUp.ToIconString()).X -
-                               ImGui.CalcTextSize(FontAwesomeIcon.ArrowDown.ToIconString()).X -
-                               ImGui.CalcTextSize(FontAwesomeIcon.Times.ToIconString()).X -
-                               ImGui.GetStyle().FramePadding.X * 6 -
-                               ImGui.GetStyle().ItemSpacing.X);
-                ImGui.PopFont();
-                ImGui.BeginDisabled(i == 0 && !wrap);
-                if (ImGuiComponents.IconButton($"##Up{i}", FontAwesomeIcon.ArrowUp))
-                {
-                    itemToAdd = item;
-                    if (i > 0)
-                        indexToAdd = i - 1;
-                    else
-                        indexToAdd = list.Items.Count - 1;
-                }
-
-                ImGui.EndDisabled();
-
-                ImGui.SameLine(0, 0);
-                ImGui.BeginDisabled(i == list.Items.Count - 1 && !wrap);
-                if (ImGuiComponents.IconButton($"##Down{i}", FontAwesomeIcon.ArrowDown))
-                {
-                    itemToAdd = item;
-                    if (i < list.Items.Count - 1)
-                        indexToAdd = i + 1;
-                    else
-                        indexToAdd = 0;
-                }
-
-                ImGui.EndDisabled();
-                ImGui.SameLine();
-            }
-            else
-            {
-                ImGui.PushFont(UiBuilder.IconFont);
-                ImGui.SameLine(ImGui.GetContentRegionAvail().X +
-                               _mainIndentSize +
-                               ImGui.GetStyle().WindowPadding.X -
-                               ImGui.CalcTextSize(FontAwesomeIcon.Times.ToIconString()).X -
-                               ImGui.GetStyle().FramePadding.X * 2);
-                ImGui.PopFont();
-            }
-
-            if (ImGuiComponents.IconButton($"##Remove{i}", FontAwesomeIcon.Times))
-                itemToRemove = item;
-
-            ImGui.PopID();
-        }
-
-        if (itemToRemove != null)
-        {
-            list.Items.Remove(itemToRemove);
-            Save();
-        }
-
-        if (itemToAdd != null)
-        {
-            _pluginLog.Information($"Updating {itemToAdd.ItemId} → {indexToAdd}");
-            list.Items.Remove(itemToAdd);
-            list.Items.Insert(indexToAdd, itemToAdd);
-            Save();
-        }
-
-        ImGui.Spacing();
-        List<Configuration.QueuedItem> clipboardItems = ParseClipboardItems();
-        ImportFromClipboardButton(list, clipboardItems);
-        RemoveFinishedItemsButton(list);
 
         ImGui.Spacing();
     }
@@ -1295,6 +1297,7 @@ internal sealed class ConfigWindow : LWindow
     private void Save()
     {
         _pluginInterface.SavePluginConfig(_configuration);
+        _shouldSave = false;
     }
 
     /// <summary>
@@ -1311,6 +1314,31 @@ internal sealed class ConfigWindow : LWindow
             ++byteCount;
         return Encoding.UTF8.GetString(ptr, byteCount);
     }
+
+    private DragDropData CalculateDragDropData(int itemCount)
+    {
+
+        float yDelta = ImGui.GetFrameHeight() + ImGui.GetStyle().ItemSpacing.Y;
+        var firstCursorPos = ImGui.GetCursorScreenPos() + new Vector2(-_mainIndentSize, -ImGui.GetStyle().ItemSpacing.Y / 2);
+        var lastCursorPos = new Vector2(
+            firstCursorPos.X + _mainIndentSize + ImGui.GetContentRegionAvail().X,
+            firstCursorPos.Y + yDelta * itemCount);
+
+        List<(Vector2 TopLeft, Vector2 BottomRight)> itemPositions = [];
+        for (int i = 0; i < itemCount; ++i)
+        {
+            Vector2 left = firstCursorPos;
+            Vector2 right = lastCursorPos with { Y = firstCursorPos.Y + yDelta - 1 };
+            itemPositions.Add((left, right));
+
+            firstCursorPos.Y += yDelta;
+            lastCursorPos.Y += yDelta;
+        }
+
+        return new DragDropData(itemPositions);
+    }
+
+    private sealed record DragDropData(List<(Vector2 TopLeft, Vector2 BottomRight)> ItemPositions);
 
     private sealed class CheckedCharacter
     {

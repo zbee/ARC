@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Dalamud.Configuration;
 using Dalamud.Game.Text;
+using Newtonsoft.Json;
 
 namespace ARControl;
 
@@ -53,6 +54,9 @@ internal sealed class Configuration : IPluginConfiguration
 
     public sealed class QueuedItem
     {
+        [JsonIgnore]
+        public Guid InternalId { get; } = Guid.NewGuid();
+
         public required uint ItemId { get; set; }
         public required int RemainingQuantity { get; set; }
     }
