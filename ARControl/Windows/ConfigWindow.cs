@@ -153,7 +153,11 @@ internal sealed class ConfigWindow : LWindow
             }
             else
             {
-                ImGui.SameLine(0, 58);
+                ImGui.PushFont(UiBuilder.IconFont);
+                ImGui.SameLine(0,
+                    ImGui.CalcTextSize(FontAwesomeIcon.ArrowsUpDown.ToIconString()).X +
+                    ImGui.GetStyle().FramePadding.X * 2 + ImGui.GetStyle().ItemSpacing.X * 2);
+                ImGui.PopFont();
             }
 
             if (ImGuiComponents.IconButton($"##Remove{i}", FontAwesomeIcon.Times))
@@ -202,7 +206,8 @@ internal sealed class ConfigWindow : LWindow
 
             var (topLeft, bottomRight) = itemPositions[oldIndex];
             topLeft += new Vector2(MainIndentSize, 0);
-            ImGui.GetWindowDrawList().AddRect(topLeft, bottomRight, ImGui.GetColorU32(ImGuiColors.DalamudGrey), 3f, ImDrawFlags.RoundCornersAll);
+            ImGui.GetWindowDrawList().AddRect(topLeft, bottomRight, ImGui.GetColorU32(ImGuiColors.DalamudGrey), 3f,
+                ImDrawFlags.RoundCornersAll);
 
             int newIndex = itemPositions.IndexOf(x => ImGui.IsMouseHoveringRect(x.TopLeft, x.BottomRight, true));
             if (newIndex >= 0 && oldIndex != newIndex)
