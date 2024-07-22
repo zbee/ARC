@@ -29,7 +29,8 @@ internal sealed class VentureListTab : ITab
         { "Collect in order of the list", "Collect item with lowest inventory first" };
 
     private static readonly Regex CountAndName = new(@"^(\d{1,5})x?\s+(.*)$", RegexOptions.Compiled);
-    private static readonly string DiscardWarningPrefix = FontAwesomeIcon.ExclamationCircle.ToIconString();
+    private const FontAwesomeIcon WarningIcon = FontAwesomeIcon.ExclamationCircle;
+    private const FontAwesomeIcon ExcessCrystalsIcon = FontAwesomeIcon.Diamond;
 
     private readonly ConfigWindow _configWindow;
     private readonly Configuration _configuration;
@@ -205,16 +206,15 @@ internal sealed class VentureListTab : ITab
             var venture = ventures.First();
 
             if (itemsToDiscard.Contains(venture.ItemId))
+                DrawWarning(WarningIcon, "This item will be automatically discarded by 'Discard Helper'.");
+            else if (item.ItemId is >= 2 and <= 13 && item.RemainingQuantity >= 10000)
             {
-                ImGui.PushFont(UiBuilder.IconFont);
-                var pos = ImGui.GetCursorPos();
-                ImGui.SetCursorPos(new Vector2(pos.X - ImGui.CalcTextSize(DiscardWarningPrefix).X - 5, pos.Y + 2));
-                ImGui.TextColored(ImGuiColors.DalamudYellow, DiscardWarningPrefix);
-                ImGui.SetCursorPos(pos);
-                ImGui.PopFont();
-
-                if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip("This item will be automatically discarded by 'Discard Helper'.");
+                if (list.Type == Configuration.ListType.CollectOneTime || list.CheckRetainerInventory)
+                    DrawWarning(ExcessCrystalsIcon,
+                        "You are responsible for manually moving shards or crystals to your retainers - ARC won't do that for you.\nIf you don't, this may lead to wasted ventures.",
+                        ImGuiColors.ParsedBlue);
+                else
+                    DrawWarning(WarningIcon, "You can never have this many of a shard or crystal in your inventory.");
             }
 
             IDalamudTextureWrap? icon = _iconCache.GetIcon(venture.IconId);
@@ -245,7 +245,8 @@ internal sealed class VentureListTab : ITab
                                ImGui.GetStyle().ItemSpacing.X);
                 ImGui.PopFont();
 
-                if (_draggedItem != null && _draggedItem.Value.Item1 == list.Id && _draggedItem.Value.Item2 == item.InternalId)
+                if (_draggedItem != null && _draggedItem.Value.Item1 == list.Id &&
+                    _draggedItem.Value.Item2 == item.InternalId)
                 {
                     ImGuiComponents.IconButton("##Move", FontAwesomeIcon.ArrowsUpDown,
                         ImGui.ColorConvertU32ToFloat4(ImGui.GetColorU32(ImGuiCol.ButtonActive)));
@@ -290,7 +291,8 @@ internal sealed class VentureListTab : ITab
             var (topLeft, bottomRight) = itemPositions[oldIndex];
             if (!itemsToDiscard.Contains(draggedItem.ItemId))
                 topLeft += new Vector2(_configWindow.MainIndentSize, 0);
-            ImGui.GetWindowDrawList().AddRect(topLeft, bottomRight, ImGui.GetColorU32(ImGuiColors.DalamudGrey), 3f, ImDrawFlags.RoundCornersAll);
+            ImGui.GetWindowDrawList().AddRect(topLeft, bottomRight, ImGui.GetColorU32(ImGuiColors.DalamudGrey), 3f,
+                ImDrawFlags.RoundCornersAll);
 
             int newIndex = itemPositions.IndexOf(x => ImGui.IsMouseHoveringRect(x.TopLeft, x.BottomRight, true));
             if (newIndex >= 0 && oldIndex != newIndex)
@@ -320,6 +322,19 @@ internal sealed class VentureListTab : ITab
         RemoveFinishedItemsButton(list);
 
         ImGui.Spacing();
+    }
+
+    private static void DrawWarning(FontAwesomeIcon icon, string tooltip, Vector4? color = null)
+    {
+        ImGui.PushFont(UiBuilder.IconFont);
+        var pos = ImGui.GetCursorPos();
+        ImGui.SetCursorPos(new Vector2(pos.X - ImGui.CalcTextSize(icon.ToIconString()).X - 5, pos.Y + 2));
+        ImGui.TextColored(color ?? ImGuiColors.DalamudYellow, icon.ToIconString());
+        ImGui.SetCursorPos(pos);
+        ImGui.PopFont();
+
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip(tooltip);
     }
 
     private void DrawNewVentureList()
