@@ -20,6 +20,7 @@ internal sealed class AllaganToolsIpc
             InventoryType.RetainerPage5,
             InventoryType.RetainerPage6,
             InventoryType.RetainerPage7,
+            InventoryType.RetainerCrystals,
         }
         .Select(x => (uint)x).ToArray();
 
