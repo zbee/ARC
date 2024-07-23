@@ -63,7 +63,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
         _allaganToolsIpc = new AllaganToolsIpc(pluginInterface, pluginLog);
         _configWindow =
             new ConfigWindow(_pluginInterface, _configuration, _gameCache, _clientState, _commandManager, _iconCache,
-                discardHelperIpc, _pluginLog);
+                discardHelperIpc, _allaganToolsIpc, _pluginLog);
         _windowSystem.AddWindow(_configWindow);
 
         ECommonsMain.Init(_pluginInterface, this);

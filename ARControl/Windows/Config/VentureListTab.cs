@@ -456,17 +456,27 @@ internal sealed class VentureListTab : ITab
                          }))
             {
                 IDalamudTextureWrap? icon = _iconCache.GetIcon(filtered.Venture.IconId);
+                Vector2 pos = ImGui.GetCursorPos();
+                Vector2 iconSize = new Vector2(ImGui.GetTextLineHeight() + ImGui.GetStyle().ItemSpacing.Y);
+
                 if (icon != null)
                 {
-                    ImGui.Image(icon.ImGuiHandle, new Vector2(23, 23));
-                    ImGui.SameLine();
-                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 3);
-
-                    icon.Dispose();
+                    ImGui.SetCursorPos(pos + new Vector2(iconSize.X + ImGui.GetStyle().FramePadding.X,
+                        ImGui.GetStyle().ItemSpacing.Y / 2));
                 }
 
                 bool addThis = ImGui.Selectable(
                     $"{filtered.Venture.Name} ({string.Join(" ", filtered.CategoryNames)})##SelectVenture{filtered.Venture.RowId}");
+
+
+                if (icon != null)
+                {
+                    ImGui.SameLine(0, 0);
+                    ImGui.SetCursorPos(pos);
+                    ImGui.Image(icon.ImGuiHandle, iconSize);
+
+                    icon.Dispose();
+                }
 
                 if (addThis || addFirst)
                 {

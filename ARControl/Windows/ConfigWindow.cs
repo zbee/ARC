@@ -41,6 +41,7 @@ internal sealed class ConfigWindow : LWindow
         ICommandManager commandManager,
         IconCache iconCache,
         DiscardHelperIpc discardHelperIpc,
+        AllaganToolsIpc allaganToolsIpc,
         IPluginLog pluginLog)
         : base($"ARC {SeIconChar.Collectible.ToIconString()}###ARControlConfig")
     {
@@ -54,6 +55,7 @@ internal sealed class ConfigWindow : LWindow
             new VentureListTab(this, _configuration, gameCache, iconCache, discardHelperIpc, pluginLog),
             new CharacterGroupTab(this, _configuration),
             new RetainersTab(this, _configuration, iconCache),
+            new InventoryTab(_configuration, allaganToolsIpc, _gameCache, pluginLog),
             new LockedItemsTab(this, _configuration, clientState, commandManager, gameCache),
             new MiscTab(this, _configuration),
         ];
