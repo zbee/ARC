@@ -175,9 +175,9 @@ internal sealed class RetainersTab : ITab
                      .OrderBy(x => x.DisplayOrder)
                      .ThenBy(x => x.RetainerContentId))
         {
-            ImGui.BeginDisabled(retainer.Level < ConfigWindow.MinLevel);
+            ImGui.BeginDisabled(retainer is { Managed: false, Level: < ConfigWindow.MinLevel });
 
-            bool managed = retainer is { Managed: true, Level: >= ConfigWindow.MinLevel };
+            bool managed = retainer.Managed;
 
             IDalamudTextureWrap? icon = _iconCache.GetIcon(62000 + retainer.Job);
             if (icon != null)
