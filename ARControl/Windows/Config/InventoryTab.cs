@@ -22,6 +22,7 @@ internal sealed class InventoryTab : ITab
     private readonly IPluginLog _pluginLog;
 
     private List<TreeNode>? _listAsTrees;
+    private DateTime? _lastUpdate;
 
     public InventoryTab(Configuration configuration, AllaganToolsIpc allaganToolsIpc, GameCache gameCache,
         IPluginLog pluginLog)
@@ -38,6 +39,7 @@ internal sealed class InventoryTab : ITab
         if (!tab)
         {
             _listAsTrees = null;
+            _lastUpdate = null;
             return;
         }
 
@@ -46,6 +48,16 @@ internal sealed class InventoryTab : ITab
 
         if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Redo, "Refresh"))
             RefreshInventory();
+
+        if (_lastUpdate != null)
+        {
+            string text = $"Last Update: {_lastUpdate:t}";
+            ImGui.SameLine();
+
+            ImGui.SameLine(ImGui.GetContentRegionAvail().X - ImGui.CalcTextSize(text).X + ImGui.GetCursorPosX());
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextColored(ImGuiColors.DalamudGrey, text);
+        }
 
         ImGui.Separator();
 
@@ -167,6 +179,7 @@ internal sealed class InventoryTab : ITab
             }
 
             _listAsTrees = listAsTrees;
+            _lastUpdate = DateTime.Now;
         }
         catch (Exception e)
         {
