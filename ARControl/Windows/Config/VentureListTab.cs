@@ -294,7 +294,7 @@ internal sealed class VentureListTab : ITab
             ImGui.GetWindowDrawList().AddRect(topLeft, bottomRight, ImGui.GetColorU32(ImGuiColors.DalamudGrey), 3f,
                 ImDrawFlags.RoundCornersAll);
 
-            int newIndex = itemPositions.IndexOf(x => ImGui.IsMouseHoveringRect(x.TopLeft, x.BottomRight, true));
+            int newIndex = itemPositions.FindIndex(x => ImGui.IsMouseHoveringRect(x.TopLeft, x.BottomRight, true));
             if (newIndex >= 0 && oldIndex != newIndex)
             {
                 itemToAdd = list.Items.Single(x => x.InternalId == _draggedItem.Value.Item2);
