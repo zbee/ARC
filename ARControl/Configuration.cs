@@ -81,6 +81,7 @@ internal sealed class Configuration : IPluginConfiguration
 
         public List<RetainerConfiguration> Retainers { get; set; } = new();
         public HashSet<uint> GatheredItems { get; set; } = new();
+        public HashSet<uint> UnlockedFolkloreBooks { get; set; } = new();
 
         public override string ToString() => $"{CharacterName} @ {WorldName}";
     }

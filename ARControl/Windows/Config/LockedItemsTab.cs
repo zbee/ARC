@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using ARControl.GameData;
+using Dalamud.Game.Text;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
@@ -114,10 +115,16 @@ internal sealed class LockedItemsTab : ITab
                         var color = ch.Items[item.ItemId];
                         if (color != ColorGrey)
                         {
+                            string itemName = item.GatheredItem.Name;
+                            var folkloreBook = _gameCache.FolkloreBooks.Values.FirstOrDefault(x =>
+                                x.GatheringItemIds.Contains(item.GatheredItem.GatheredItemId));
+                            if (folkloreBook != null && !ch.Character.UnlockedFolkloreBooks.Contains(folkloreBook.ItemId))
+                                itemName += $" ({SeIconChar.Prohibited.ToIconString()} {folkloreBook.Name})";
+
                             ImGui.PushStyleColor(ImGuiCol.Text, color);
                             if (currentCharacter && color == ColorRed)
                             {
-                                ImGui.Selectable(item.GatheredItem.Name);
+                                ImGui.Selectable(itemName);
                                 if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
                                 {
                                     uint classJob = _clientState.LocalPlayer!.ClassJob.Id;
@@ -133,7 +140,7 @@ internal sealed class LockedItemsTab : ITab
                             }
                             else
                             {
-                                ImGui.Text(item.GatheredItem.Name);
+                                ImGui.Text(itemName);
                             }
 
                             ImGui.PopStyleColor();
@@ -149,6 +156,8 @@ internal sealed class LockedItemsTab : ITab
             foreach (var item in itemsToCheck.Where(x =>
                          charactersToCheck.Any(y => y.ToCheck(onlyShowMissing).ContainsKey(x.ItemId))))
             {
+                var folkloreBook = _gameCache.FolkloreBooks.Values.FirstOrDefault(x =>
+                    x.GatheringItemIds.Contains(item.GatheredItem.GatheredItemId));
                 if (ImGui.CollapsingHeader($"{item.GatheredItem.Name}##Gathered{item.GatheredItem.ItemId}"))
                 {
                     ImGui.Indent(_configWindow.MainIndentSize + ImGui.GetStyle().FramePadding.X);
@@ -171,8 +180,12 @@ internal sealed class LockedItemsTab : ITab
                                 ImGui.PopFont();
                             }
 
+                            string characterName = ch.Character.ToString();
+                            if (folkloreBook != null && !ch.Character.UnlockedFolkloreBooks.Contains(folkloreBook.ItemId))
+                                characterName += $" ({SeIconChar.Prohibited.ToIconString()} {folkloreBook.Name})";
+
                             ImGui.PushStyleColor(ImGuiCol.Text, color);
-                            ImGui.TextUnformatted(ch.Character.ToString());
+                            ImGui.TextUnformatted(characterName);
                             ImGui.PopStyleColor();
                         }
                     }

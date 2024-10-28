@@ -44,6 +44,16 @@ partial class AutoRetainerControlPlugin
                 save = true;
             }
 
+            if (_clientState.LocalContentId == registeredCharacterId)
+            {
+                var unlockedFolkloreBooks = _gameCache.FolkloreBooks.Values.Where(x => x.IsUnlocked()).Select(x => x.ItemId).ToHashSet();
+                if (character.UnlockedFolkloreBooks != unlockedFolkloreBooks)
+                {
+                    character.UnlockedFolkloreBooks = unlockedFolkloreBooks;
+                    save = true;
+                }
+            }
+
             // remove retainers without name
             save |= character.Retainers.RemoveAll(x => string.IsNullOrEmpty(x.Name)) > 0;
 
