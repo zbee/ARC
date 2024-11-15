@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using Dalamud.Plugin.Services;
-using Lumina.Excel.GeneratedSheets;
+using Lumina.Excel.Sheets;
 
 namespace ARControl.GameData;
 
@@ -9,13 +9,14 @@ internal sealed class Venture
     public Venture(IDataManager dataManager, RetainerTask retainerTask)
     {
         RowId = retainerTask.RowId;
-        Category = retainerTask.ClassJobCategory.Value!;
+        Category = retainerTask.ClassJobCategory.Value;
 
-        var taskDetails = dataManager.GetExcelSheet<RetainerTaskNormal>()!.GetRow(retainerTask.Task)!;
-        var taskParameters = retainerTask.RetainerTaskParameter.Value!;
-        ItemId = taskDetails.Item.Row;
-        IconId = taskDetails.Item.Value!.Icon;
-        Name = taskDetails.Item.Value!.Name.ToString();
+        RetainerTaskNormal taskDetails =
+            dataManager.GetExcelSheet<RetainerTaskNormal>().GetRow(retainerTask.Task.RowId);
+        RetainerTaskParameter taskParameters = retainerTask.RetainerTaskParameter.Value;
+        ItemId = taskDetails.Item.RowId;
+        IconId = taskDetails.Item.Value.Icon;
+        Name = taskDetails.Item.Value.Name.ToString();
         Level = retainerTask.RetainerLevel;
         ItemLevelCombat = retainerTask.RequiredItemLevel;
         RequiredGathering = retainerTask.RequiredGathering;

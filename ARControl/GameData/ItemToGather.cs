@@ -1,19 +1,20 @@
-﻿using Dalamud.Plugin.Services;
-using Lumina.Excel.GeneratedSheets;
+﻿using Lumina.Excel.Sheets;
 
 namespace ARControl.GameData;
 
 internal sealed class ItemToGather
 {
-    public ItemToGather(IDataManager dataManager, GatheringItem item)
+    public ItemToGather(GatheringItem item)
     {
         GatheredItemId = item.RowId;
-        ItemId = item.Item;
-        Name = dataManager.GetExcelSheet<Item>()!.GetRow((uint)item.Item)!.Name.ToString();
+
+        var itemRef = item.Item.GetValueOrDefault<Item>()!.Value;
+        ItemId = itemRef.RowId;
+        Name = itemRef.Name.ToString();
     }
 
 
     public uint GatheredItemId { get; }
-    public int ItemId { get; }
+    public uint ItemId { get; }
     public string Name { get; }
 }

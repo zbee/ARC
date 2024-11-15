@@ -84,114 +84,123 @@ internal sealed class LockedItemsTab : ITab
             .ToList();
 
         if (checkPerCharacter)
+            DrawPerCharacter(charactersToCheck, itemsToCheck, onlyShowMissing);
+        else
+            DrawPerItem(charactersToCheck, itemsToCheck, onlyShowMissing);
+    }
+
+    private void DrawPerCharacter(List<CheckedCharacter> charactersToCheck, List<CheckedItem> itemsToCheck,
+        bool onlyShowMissing)
+    {
+        foreach (var ch in charactersToCheck.Where(x => x.ToCheck(onlyShowMissing).Count != 0))
         {
-            foreach (var ch in charactersToCheck.Where(x => x.ToCheck(onlyShowMissing).Count != 0))
+            bool currentCharacter = _clientState.LocalContentId == ch.Character.LocalContentId;
+            ImGui.BeginDisabled(currentCharacter);
+            if (ImGuiComponents.IconButton($"SwitchCharacters{ch.Character.LocalContentId}",
+                    FontAwesomeIcon.DoorOpen))
             {
-                bool currentCharacter = _clientState.LocalContentId == ch.Character.LocalContentId;
-                ImGui.BeginDisabled(currentCharacter);
-                if (ImGuiComponents.IconButton($"SwitchCharacters{ch.Character.LocalContentId}",
-                        FontAwesomeIcon.DoorOpen))
+                _commandManager.ProcessCommand(
+                    $"/ays relog {ch.Character.CharacterName}@{ch.Character.WorldName}");
+            }
+
+            ImGui.EndDisabled();
+            ImGui.SameLine();
+
+            if (currentCharacter)
+                ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.HealerGreen);
+
+            bool expanded = ImGui.CollapsingHeader($"{ch.Character}###GatheredCh{ch.Character.LocalContentId}");
+            if (currentCharacter)
+                ImGui.PopStyleColor();
+
+            if (expanded)
+            {
+                ImGui.Indent(_configWindow.MainIndentSize + ImGui.GetStyle().FramePadding.X);
+                foreach (var item in itemsToCheck.Where(x =>
+                             ch.ToCheck(onlyShowMissing).ContainsKey(x.ItemId)))
                 {
-                    _commandManager.ProcessCommand(
-                        $"/ays relog {ch.Character.CharacterName}@{ch.Character.WorldName}");
-                }
-
-                ImGui.EndDisabled();
-                ImGui.SameLine();
-
-                if (currentCharacter)
-                    ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.HealerGreen);
-
-                bool expanded = ImGui.CollapsingHeader($"{ch.Character}###GatheredCh{ch.Character.LocalContentId}");
-                if (currentCharacter)
-                    ImGui.PopStyleColor();
-
-                if (expanded)
-                {
-                    ImGui.Indent(_configWindow.MainIndentSize + ImGui.GetStyle().FramePadding.X);
-                    foreach (var item in itemsToCheck.Where(x =>
-                                 ch.ToCheck(onlyShowMissing).ContainsKey(x.ItemId)))
+                    var color = ch.Items[item.ItemId];
+                    if (color != ColorGrey)
                     {
-                        var color = ch.Items[item.ItemId];
-                        if (color != ColorGrey)
+                        string itemName = item.GatheredItem.Name;
+                        var folkloreBook = _gameCache.FolkloreBooks.Values.FirstOrDefault(x =>
+                            x.GatheringItemIds.Contains(item.GatheredItem.GatheredItemId));
+                        if (folkloreBook != null && !ch.Character.UnlockedFolkloreBooks.Contains(folkloreBook.ItemId))
+                            itemName += $" ({SeIconChar.Prohibited.ToIconString()} {folkloreBook.Name})";
+
+                        ImGui.PushStyleColor(ImGuiCol.Text, color);
+                        if (currentCharacter && color == ColorRed)
                         {
-                            string itemName = item.GatheredItem.Name;
-                            var folkloreBook = _gameCache.FolkloreBooks.Values.FirstOrDefault(x =>
-                                x.GatheringItemIds.Contains(item.GatheredItem.GatheredItemId));
-                            if (folkloreBook != null && !ch.Character.UnlockedFolkloreBooks.Contains(folkloreBook.ItemId))
-                                itemName += $" ({SeIconChar.Prohibited.ToIconString()} {folkloreBook.Name})";
-
-                            ImGui.PushStyleColor(ImGuiCol.Text, color);
-                            if (currentCharacter && color == ColorRed)
+                            ImGui.Selectable(itemName);
+                            if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
                             {
-                                ImGui.Selectable(itemName);
-                                if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
-                                {
-                                    uint classJob = _clientState.LocalPlayer!.ClassJob.Id;
-                                    if (classJob == 16)
-                                        _commandManager.ProcessCommand($"/gathermin {item.GatheredItem.Name}");
-                                    else if (classJob == 17)
-                                        _commandManager.ProcessCommand($"/gatherbtn {item.GatheredItem.Name}");
-                                    else if (classJob == 18)
-                                        _commandManager.ProcessCommand($"/gatherfish {item.GatheredItem.Name}");
-                                    else
-                                        _commandManager.ProcessCommand($"/gather {item.GatheredItem.Name}");
-                                }
+                                uint classJob = _clientState.LocalPlayer!.ClassJob.RowId;
+                                if (classJob == 16)
+                                    _commandManager.ProcessCommand($"/gathermin {item.GatheredItem.Name}");
+                                else if (classJob == 17)
+                                    _commandManager.ProcessCommand($"/gatherbtn {item.GatheredItem.Name}");
+                                else if (classJob == 18)
+                                    _commandManager.ProcessCommand($"/gatherfish {item.GatheredItem.Name}");
+                                else
+                                    _commandManager.ProcessCommand($"/gather {item.GatheredItem.Name}");
                             }
-                            else
-                            {
-                                ImGui.Text(itemName);
-                            }
-
-                            ImGui.PopStyleColor();
                         }
-                    }
+                        else
+                        {
+                            ImGui.Text(itemName);
+                        }
 
-                    ImGui.Unindent(_configWindow.MainIndentSize + ImGui.GetStyle().FramePadding.X);
+                        ImGui.PopStyleColor();
+                    }
                 }
+
+                ImGui.Unindent(_configWindow.MainIndentSize + ImGui.GetStyle().FramePadding.X);
             }
         }
-        else
+    }
+
+    private void DrawPerItem(List<CheckedCharacter> charactersToCheck, List<CheckedItem> itemsToCheck,
+        bool onlyShowMissing)
+    {
+        foreach (var item in itemsToCheck.Where(x =>
+                     charactersToCheck.Any(y => y.ToCheck(onlyShowMissing).ContainsKey(x.ItemId))))
         {
-            foreach (var item in itemsToCheck.Where(x =>
-                         charactersToCheck.Any(y => y.ToCheck(onlyShowMissing).ContainsKey(x.ItemId))))
+            var folkloreBook = _gameCache.FolkloreBooks.Values.FirstOrDefault(x =>
+                x.GatheringItemIds.Contains(item.GatheredItem.GatheredItemId));
+            if (ImGui.CollapsingHeader($"{item.GatheredItem.Name}##Gathered{item.GatheredItem.ItemId}"))
             {
-                var folkloreBook = _gameCache.FolkloreBooks.Values.FirstOrDefault(x =>
-                    x.GatheringItemIds.Contains(item.GatheredItem.GatheredItemId));
-                if (ImGui.CollapsingHeader($"{item.GatheredItem.Name}##Gathered{item.GatheredItem.ItemId}"))
+                ImGui.Indent(_configWindow.MainIndentSize + ImGui.GetStyle().FramePadding.X);
+                foreach (var ch in charactersToCheck)
                 {
-                    ImGui.Indent(_configWindow.MainIndentSize + ImGui.GetStyle().FramePadding.X);
-                    foreach (var ch in charactersToCheck)
+                    var color = ch.Items[item.ItemId];
+                    if (color == ColorRed || (color == ColorGreen && !onlyShowMissing))
                     {
-                        var color = ch.Items[item.ItemId];
-                        if (color == ColorRed || (color == ColorGreen && !onlyShowMissing))
+                        bool currentCharacter = _clientState.LocalContentId == ch.Character.LocalContentId;
+                        if (currentCharacter)
                         {
-                            bool currentCharacter = _clientState.LocalContentId == ch.Character.LocalContentId;
-                            if (currentCharacter)
+                            ImGui.PushFont(UiBuilder.IconFont);
+                            var pos = ImGui.GetCursorPos();
+                            ImGui.SetCursorPos(pos with
                             {
-                                ImGui.PushFont(UiBuilder.IconFont);
-                                var pos = ImGui.GetCursorPos();
-                                ImGui.SetCursorPos(pos with
-                                {
-                                    X = pos.X - ImGui.CalcTextSize(CurrentCharPrefix).X - 5
-                                });
-                                ImGui.TextUnformatted(CurrentCharPrefix);
-                                ImGui.SetCursorPos(pos);
-                                ImGui.PopFont();
-                            }
-
-                            string characterName = ch.Character.ToString();
-                            if (folkloreBook != null && !ch.Character.UnlockedFolkloreBooks.Contains(folkloreBook.ItemId))
-                                characterName += $" ({SeIconChar.Prohibited.ToIconString()} {folkloreBook.Name})";
-
-                            ImGui.PushStyleColor(ImGuiCol.Text, color);
-                            ImGui.TextUnformatted(characterName);
-                            ImGui.PopStyleColor();
+                                X = pos.X - ImGui.CalcTextSize(CurrentCharPrefix).X - 5
+                            });
+                            ImGui.TextUnformatted(CurrentCharPrefix);
+                            ImGui.SetCursorPos(pos);
+                            ImGui.PopFont();
                         }
-                    }
 
-                    ImGui.Unindent(_configWindow.MainIndentSize + ImGui.GetStyle().FramePadding.X);
+                        string characterName = ch.Character.ToString();
+                        if (folkloreBook != null &&
+                            !ch.Character.UnlockedFolkloreBooks.Contains(folkloreBook.ItemId))
+                            characterName += $" ({SeIconChar.Prohibited.ToIconString()} {folkloreBook.Name})";
+
+                        ImGui.PushStyleColor(ImGuiCol.Text, color);
+                        ImGui.TextUnformatted(characterName);
+                        ImGui.PopStyleColor();
+                    }
                 }
+
+                ImGui.Unindent(_configWindow.MainIndentSize + ImGui.GetStyle().FramePadding.X);
             }
         }
     }

@@ -109,9 +109,10 @@ partial class AutoRetainerControlPlugin
                     save = true;
                 }
 
-                if (retainer.DisplayOrder != retainerData.DisplayOrder)
+                int displayOrder = offlineCharacterData.RetainerData.IndexOf(retainerData);
+                if (retainer.DisplayOrder != displayOrder)
                 {
-                    retainer.DisplayOrder = retainerData.DisplayOrder;
+                    retainer.DisplayOrder = displayOrder;
                     save = true;
                 }
 
