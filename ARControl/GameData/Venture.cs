@@ -63,16 +63,16 @@ internal sealed class Venture
     public uint RowId { get; }
     public ClassJobCategory Category { get; }
 
-    public string? CategoryName
+    public EVentureCategoryType CategoryType
     {
         get
         {
             return Category.RowId switch
             {
-                17 => "MIN",
-                18 => "BTN",
-                19 => "FSH",
-                _ => "DoWM",
+                17 => EVentureCategoryType.MIN,
+                18 => EVentureCategoryType.BTN,
+                19 => EVentureCategoryType.FSH,
+                _ => EVentureCategoryType.DoWM,
             };
         }
     }

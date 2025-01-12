@@ -26,23 +26,26 @@ internal sealed class VentureResolver
             return (null, null);
         }
 
-        var itemToGather = _gameCache.ItemsToGather.FirstOrDefault(x => x.ItemId == itemId);
-        if (itemToGather != null && !character.GatheredItems.Contains(itemToGather.GatheredItemId))
+        if (venture.CategoryType != EVentureCategoryType.DoWM)
         {
-            _pluginLog.Information($"Character hasn't gathered {venture.Name} yet");
-            return (null, null);
+            var itemToGather = _gameCache.ItemsToGather.FirstOrDefault(x => x.ItemId == itemId);
+            if (itemToGather != null && !character.GatheredItems.Contains(itemToGather.GatheredItemId))
+            {
+                _pluginLog.Information($"Character hasn't gathered {venture.Name} yet");
+                return (null, null);
+            }
         }
 
         _pluginLog.Debug(
             $"Found venture {venture.Name}, row = {venture.RowId}, checking if we have high enough stats");
         VentureReward? reward = null;
-        if (venture.CategoryName is "MIN" or "BTN")
+        if (venture.CategoryType is EVentureCategoryType.MIN or EVentureCategoryType.BTN)
         {
             if (retainer.Gathering >= venture.RequiredGathering)
                 reward = venture.Rewards.Last(
                     x => retainer.Perception >= x.PerceptionMinerBotanist);
         }
-        else if (venture.CategoryName == "FSH")
+        else if (venture.CategoryType == EVentureCategoryType.FSH)
         {
             if (retainer.Gathering >= venture.RequiredGathering)
                 reward = venture.Rewards.Last(

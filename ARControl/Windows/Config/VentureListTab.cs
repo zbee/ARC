@@ -226,7 +226,7 @@ internal sealed class VentureListTab : ITab
 
             ImGui.SetNextItemWidth(130 * ImGuiHelpers.GlobalScale);
             int quantity = item.RemainingQuantity;
-            if (ImGui.InputInt($"{venture.Name} ({string.Join(" ", ventures.Select(x => x.CategoryName))})",
+            if (ImGui.InputInt($"{venture.Name} ({string.Join(" ", ventures.Select(x => x.CategoryType.ToString()))})",
                     ref quantity, 100))
             {
                 item.RemainingQuantity = quantity;
@@ -452,7 +452,7 @@ internal sealed class VentureListTab : ITab
                          .Select(x => new
                          {
                              Venture = x.First(),
-                             CategoryNames = x.Select(y => y.CategoryName)
+                             CategoryNames = x.Select(y => y.CategoryType.ToString())
                          }))
             {
                 IDalamudTextureWrap? icon = _iconCache.GetIcon(filtered.Venture.IconId);

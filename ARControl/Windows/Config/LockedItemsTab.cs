@@ -241,7 +241,7 @@ internal sealed class LockedItemsTab : ITab
                 }
 
                 // check if we are the correct job
-                bool enabled = character.Retainers.Any(x => item.Ventures.Any(v => v.MatchesJob(x.Job)));
+                bool enabled = character.Retainers.Any(x => item.Ventures.Any(v => v.CategoryType != EVentureCategoryType.DoWM && v.MatchesJob(x.Job)));
                 if (enabled)
                 {
                     // do we have it gathered on this char?
