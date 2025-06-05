@@ -69,7 +69,7 @@ internal sealed class ConfigWindow : LWindow
 
     public float MainIndentSize { get; private set; } = 1;
 
-    public override void Draw()
+    public override void DrawContent()
     {
         using var tabBar = ImRaii.TabBar("ARConfigTabs");
         if (!tabBar)
