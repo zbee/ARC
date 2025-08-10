@@ -5,6 +5,7 @@ using System.Numerics;
 using ARControl.External;
 using ARControl.GameData;
 using ARControl.Windows.Config;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Game.Text;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
@@ -13,8 +14,6 @@ using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using ECommons;
-using ImGuiNET;
-using LLib;
 using LLib.ImGui;
 
 namespace ARControl.Windows;
@@ -39,7 +38,7 @@ internal sealed class ConfigWindow : LWindow
         GameCache gameCache,
         IClientState clientState,
         ICommandManager commandManager,
-        IconCache iconCache,
+        ITextureProvider textureProvider,
         DiscardHelperIpc discardHelperIpc,
         AllaganToolsIpc allaganToolsIpc,
         IPluginLog pluginLog)
@@ -52,9 +51,9 @@ internal sealed class ConfigWindow : LWindow
 
         _tabs =
         [
-            new VentureListTab(this, _configuration, gameCache, iconCache, discardHelperIpc, pluginLog),
+            new VentureListTab(this, _configuration, gameCache, textureProvider, discardHelperIpc, pluginLog),
             new CharacterGroupTab(this, _configuration),
-            new RetainersTab(this, _configuration, iconCache),
+            new RetainersTab(this, _configuration, textureProvider),
             new InventoryTab(_configuration, allaganToolsIpc, _gameCache, pluginLog),
             new LockedItemsTab(this, _configuration, clientState, commandManager, gameCache),
             new MiscTab(this, _configuration),

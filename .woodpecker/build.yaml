@@ -23,7 +23,7 @@ steps:
     commands:
       - mkdir release
       - mv ARControl/dist/ARControl/latest.zip release/ARControl-${CI_COMMIT_TAG##v}.zip
-      - mv ARControl/dist/ARControl/ARControl.json release/ARControl-${CI_COMMIT_TAG##v}.json.d12
+      - mv ARControl/dist/ARControl/ARControl.json release/ARControl-${CI_COMMIT_TAG##v}.json.d13
     when:
       - event: tag
 

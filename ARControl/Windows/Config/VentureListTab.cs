@@ -7,16 +7,17 @@ using System.Text;
 using System.Text.RegularExpressions;
 using ARControl.External;
 using ARControl.GameData;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
+using Dalamud.Interface.Textures;
 using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using ECommons;
 using ECommons.ImGuiMethods;
-using ImGuiNET;
 using LLib;
 
 namespace ARControl.Windows.Config;
@@ -35,7 +36,7 @@ internal sealed class VentureListTab : ITab
     private readonly ConfigWindow _configWindow;
     private readonly Configuration _configuration;
     private readonly GameCache _gameCache;
-    private readonly IconCache _iconCache;
+    private readonly ITextureProvider _textureProvider;
     private readonly DiscardHelperIpc _discardHelperIpc;
     private readonly IPluginLog _pluginLog;
 
@@ -53,12 +54,12 @@ internal sealed class VentureListTab : ITab
     };
 
     public VentureListTab(ConfigWindow configWindow, Configuration configuration, GameCache gameCache,
-        IconCache iconCache, DiscardHelperIpc discardHelperIpc, IPluginLog pluginLog)
+        ITextureProvider textureProvider, DiscardHelperIpc discardHelperIpc, IPluginLog pluginLog)
     {
         _configWindow = configWindow;
         _configuration = configuration;
         _gameCache = gameCache;
-        _iconCache = iconCache;
+        _textureProvider = textureProvider;
         _discardHelperIpc = discardHelperIpc;
         _pluginLog = pluginLog;
     }
@@ -217,12 +218,9 @@ internal sealed class VentureListTab : ITab
                     DrawWarning(WarningIcon, "You can never have this many of a shard or crystal in your inventory.");
             }
 
-            IDalamudTextureWrap? icon = _iconCache.GetIcon(venture.IconId);
-            if (icon != null)
-            {
-                ImGui.Image(icon.ImGuiHandle, new Vector2(ImGui.GetFrameHeight()));
-                ImGui.SameLine(0, ImGui.GetStyle().FramePadding.X);
-            }
+            var icon = _textureProvider.GetFromGameIcon(new GameIconLookup(venture.IconId));
+            ImGui.Image(icon.GetWrapOrEmpty().Handle, new Vector2(ImGui.GetFrameHeight()));
+            ImGui.SameLine(0, ImGui.GetStyle().FramePadding.X);
 
             ImGui.SetNextItemWidth(130 * ImGuiHelpers.GlobalScale);
             int quantity = item.RemainingQuantity;
@@ -233,42 +231,7 @@ internal sealed class VentureListTab : ITab
                 _configWindow.ShouldSave();
             }
 
-            if (list.Items.Count > 1)
-            {
-                ImGui.PushFont(UiBuilder.IconFont);
-                ImGui.SameLine(ImGui.GetContentRegionAvail().X +
-                               _configWindow.MainIndentSize +
-                               ImGui.GetStyle().WindowPadding.X -
-                               ImGui.CalcTextSize(FontAwesomeIcon.ArrowsUpDown.ToIconString()).X -
-                               ImGui.CalcTextSize(FontAwesomeIcon.Times.ToIconString()).X -
-                               ImGui.GetStyle().FramePadding.X * 4 -
-                               ImGui.GetStyle().ItemSpacing.X);
-                ImGui.PopFont();
-
-                if (_draggedItem != null && _draggedItem.Value.Item1 == list.Id &&
-                    _draggedItem.Value.Item2 == item.InternalId)
-                {
-                    ImGuiComponents.IconButton("##Move", FontAwesomeIcon.ArrowsUpDown,
-                        ImGui.ColorConvertU32ToFloat4(ImGui.GetColorU32(ImGuiCol.ButtonActive)));
-                }
-                else
-                    ImGuiComponents.IconButton("##Move", FontAwesomeIcon.ArrowsUpDown);
-
-                if (_draggedItem == null && ImGui.IsItemActive() && ImGui.IsMouseDragging(ImGuiMouseButton.Left))
-                    _draggedItem = (list.Id, item.InternalId);
-
-                ImGui.SameLine();
-            }
-            else
-            {
-                ImGui.PushFont(UiBuilder.IconFont);
-                ImGui.SameLine(ImGui.GetContentRegionAvail().X +
-                               _configWindow.MainIndentSize +
-                               ImGui.GetStyle().WindowPadding.X -
-                               ImGui.CalcTextSize(FontAwesomeIcon.Times.ToIconString()).X -
-                               ImGui.GetStyle().FramePadding.X * 2);
-                ImGui.PopFont();
-            }
+            DrawDragDropIcons(list, item);
 
             if (ImGuiComponents.IconButton($"##Remove{i}", FontAwesomeIcon.Times))
                 itemToRemove = item;
@@ -322,6 +285,46 @@ internal sealed class VentureListTab : ITab
         RemoveFinishedItemsButton(list);
 
         ImGui.Spacing();
+    }
+
+    private void DrawDragDropIcons(Configuration.ItemList list, Configuration.QueuedItem item)
+    {
+        if (list.Items.Count > 1)
+        {
+            ImGui.PushFont(UiBuilder.IconFont);
+            ImGui.SameLine(ImGui.GetContentRegionAvail().X +
+                           _configWindow.MainIndentSize +
+                           ImGui.GetStyle().WindowPadding.X -
+                           ImGui.CalcTextSize(FontAwesomeIcon.ArrowsUpDown.ToIconString()).X -
+                           ImGui.CalcTextSize(FontAwesomeIcon.Times.ToIconString()).X -
+                           ImGui.GetStyle().FramePadding.X * 4 -
+                           ImGui.GetStyle().ItemSpacing.X);
+            ImGui.PopFont();
+
+            if (_draggedItem != null && _draggedItem.Value.Item1 == list.Id &&
+                _draggedItem.Value.Item2 == item.InternalId)
+            {
+                ImGuiComponents.IconButton("##Move", FontAwesomeIcon.ArrowsUpDown,
+                    ImGui.ColorConvertU32ToFloat4(ImGui.GetColorU32(ImGuiCol.ButtonActive)));
+            }
+            else
+                ImGuiComponents.IconButton("##Move", FontAwesomeIcon.ArrowsUpDown);
+
+            if (_draggedItem == null && ImGui.IsItemActive() && ImGui.IsMouseDragging(ImGuiMouseButton.Left))
+                _draggedItem = (list.Id, item.InternalId);
+
+            ImGui.SameLine();
+        }
+        else
+        {
+            ImGui.PushFont(UiBuilder.IconFont);
+            ImGui.SameLine(ImGui.GetContentRegionAvail().X +
+                           _configWindow.MainIndentSize +
+                           ImGui.GetStyle().WindowPadding.X -
+                           ImGui.CalcTextSize(FontAwesomeIcon.Times.ToIconString()).X -
+                           ImGui.GetStyle().FramePadding.X * 2);
+            ImGui.PopFont();
+        }
     }
 
     private static void DrawWarning(FontAwesomeIcon icon, string tooltip, Vector4? color = null)
@@ -455,28 +458,20 @@ internal sealed class VentureListTab : ITab
                              CategoryNames = x.Select(y => y.CategoryType.ToString())
                          }))
             {
-                IDalamudTextureWrap? icon = _iconCache.GetIcon(filtered.Venture.IconId);
+                var icon = _textureProvider.GetFromGameIcon(new GameIconLookup(filtered.Venture.IconId));
                 Vector2 pos = ImGui.GetCursorPos();
                 Vector2 iconSize = new Vector2(ImGui.GetTextLineHeight() + ImGui.GetStyle().ItemSpacing.Y);
 
-                if (icon != null)
-                {
-                    ImGui.SetCursorPos(pos + new Vector2(iconSize.X + ImGui.GetStyle().FramePadding.X,
-                        ImGui.GetStyle().ItemSpacing.Y / 2));
-                }
+                ImGui.SetCursorPos(pos + new Vector2(iconSize.X + ImGui.GetStyle().FramePadding.X,
+                    ImGui.GetStyle().ItemSpacing.Y / 2));
 
                 bool addThis = ImGui.Selectable(
                     $"{filtered.Venture.Name} ({string.Join(" ", filtered.CategoryNames)})##SelectVenture{filtered.Venture.RowId}");
 
 
-                if (icon != null)
-                {
-                    ImGui.SameLine(0, 0);
-                    ImGui.SetCursorPos(pos);
-                    ImGui.Image(icon.ImGuiHandle, iconSize);
-
-                    icon.Dispose();
-                }
+                ImGui.SameLine(0, 0);
+                ImGui.SetCursorPos(pos);
+                ImGui.Image(icon.GetWrapOrEmpty().Handle, iconSize);
 
                 if (addThis || addFirst)
                 {
@@ -570,7 +565,7 @@ internal sealed class VentureListTab : ITab
         List<Configuration.QueuedItem> clipboardItems = new List<Configuration.QueuedItem>();
         try
         {
-            string? clipboardText = GetClipboardText();
+            string clipboardText = ImGui.GetClipboardText();
             if (!string.IsNullOrWhiteSpace(clipboardText))
             {
                 foreach (var clipboardLine in clipboardText.ReplaceLineEndings().Split(Environment.NewLine))
@@ -605,21 +600,6 @@ internal sealed class VentureListTab : ITab
         return name.Length >= 2 &&
                !name.Contains('%', StringComparison.Ordinal) &&
                !_configuration.ItemLists.Any(x => x != existingList && name.EqualsIgnoreCase(x.Name));
-    }
-
-    /// <summary>
-    /// The default implementation for <see cref="ImGui.GetClipboardText"/> throws an NullReferenceException if the clipboard is empty, maybe also if it doesn't contain text.
-    /// </summary>
-    private unsafe string? GetClipboardText()
-    {
-        byte* ptr = ImGuiNative.igGetClipboardText();
-        if (ptr == null)
-            return null;
-
-        int byteCount = 0;
-        while (ptr[byteCount] != 0)
-            ++byteCount;
-        return Encoding.UTF8.GetString(ptr, byteCount);
     }
 
     private sealed class TemporaryConfig

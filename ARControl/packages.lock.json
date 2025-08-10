@@ -4,9 +4,9 @@
     "net9.0-windows7.0": {
       "DalamudPackager": {
         "type": "Direct",
-        "requested": "[12.0.0, )",
-        "resolved": "12.0.0",
-        "contentHash": "J5TJLV3f16T/E2H2P17ClWjtfEBPpq3yxvqW46eN36JCm6wR+EaoaYkqG9Rm5sHqs3/nK/vKjWWyvEs/jhKoXw=="
+        "requested": "[13.0.0, )",
+        "resolved": "13.0.0",
+        "contentHash": "Mb3cUDSK/vDPQ8gQIeuCw03EMYrej1B4J44a1AvIJ9C759p9XeqdU9Hg4WgOmlnlPe0G7ILTD32PKSUpkQNa8w=="
       },
       "DotNet.ReproducibleBuilds": {
         "type": "Direct",
@@ -23,6 +23,11 @@
           "Microsoft.Build.Tasks.Git": "8.0.0",
           "Microsoft.SourceLink.Common": "8.0.0"
         }
+      },
+      "ECommons": {
+        "type": "Transitive",
+        "resolved": "3.0.1.5",
+        "contentHash": "dUbgHV16y3nq/PgEg244IpBAuP0FQfrBFyrlNDfSkeNrB7Ze7WqOneGP+Nuorr1hLv0p2E2nyrNvFp8mJuKDWQ=="
       },
       "JetBrains.Annotations": {
         "type": "Transitive",
@@ -42,16 +47,13 @@
       "autoretainerapi": {
         "type": "Project",
         "dependencies": {
-          "ECommons": "[2.2.0.2, )"
+          "ECommons": "[3.0.1.5, )"
         }
-      },
-      "ecommons": {
-        "type": "Project"
       },
       "llib": {
         "type": "Project",
         "dependencies": {
-          "DalamudPackager": "[12.0.0, )",
+          "DalamudPackager": "[13.0.0, )",
           "JetBrains.Annotations": "[2024.3.0, )"
         }
       }

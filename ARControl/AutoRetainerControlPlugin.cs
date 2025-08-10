@@ -6,6 +6,7 @@ using ARControl.External;
 using ARControl.GameData;
 using ARControl.Windows;
 using AutoRetainerAPI;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Game.Command;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
@@ -15,8 +16,6 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using ECommons;
 using FFXIVClientStructs.FFXIV.Client.Game;
-using ImGuiNET;
-using LLib;
 
 namespace ARControl;
 
@@ -34,7 +33,6 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
 
     private readonly Configuration _configuration;
     private readonly GameCache _gameCache;
-    private readonly IconCache _iconCache;
     private readonly VentureResolver _ventureResolver;
     private readonly AllaganToolsIpc _allaganToolsIpc;
     private readonly ConfigWindow _configWindow;
@@ -57,13 +55,12 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
         _configuration = (Configuration?)_pluginInterface.GetPluginConfig() ?? new Configuration { Version = 2 };
 
         _gameCache = new GameCache(dataManager);
-        _iconCache = new IconCache(textureProvider);
         _ventureResolver = new VentureResolver(_gameCache, _pluginLog);
         DiscardHelperIpc discardHelperIpc = new(_pluginInterface);
         _allaganToolsIpc = new AllaganToolsIpc(pluginInterface, pluginLog);
         _configWindow =
-            new ConfigWindow(_pluginInterface, _configuration, _gameCache, _clientState, _commandManager, _iconCache,
-                discardHelperIpc, _allaganToolsIpc, _pluginLog);
+            new ConfigWindow(_pluginInterface, _configuration, _gameCache, _clientState, _commandManager,
+                textureProvider, discardHelperIpc, _allaganToolsIpc, _pluginLog);
         _windowSystem.AddWindow(_configWindow);
 
         ECommonsMain.Init(_pluginInterface, this);
@@ -449,7 +446,6 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
         _pluginInterface.UiBuilder.OpenConfigUi -= _configWindow.Toggle;
         _pluginInterface.UiBuilder.Draw -= _windowSystem.Draw;
 
-        _iconCache.Dispose();
         _autoRetainerReflection.Dispose();
         _autoRetainerApi.Dispose();
         ECommonsMain.Dispose();

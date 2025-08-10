@@ -9,8 +9,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LLib", "LLib\LLib.csproj", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoRetainerAPI", "AutoRetainerAPI\AutoRetainerAPI\AutoRetainerAPI.csproj", "{325D077C-A47F-41D7-AA63-0FD3B4037C0B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommons", "ECommons\ECommons\ECommons.csproj", "{A3EDB8A3-1BB0-4E1A-A957-6F60D4C85290}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{CF9EEB40-58AE-4EB1-AEB1-4C7E837182B6}"
 	ProjectSection(SolutionItems) = preProject
 		.woodpecker\build.yaml = .woodpecker\build.yaml
@@ -34,10 +32,6 @@ Global
 		{325D077C-A47F-41D7-AA63-0FD3B4037C0B}.Debug|x64.Build.0 = Debug|x64
 		{325D077C-A47F-41D7-AA63-0FD3B4037C0B}.Release|x64.ActiveCfg = Release|x64
 		{325D077C-A47F-41D7-AA63-0FD3B4037C0B}.Release|x64.Build.0 = Release|x64
-		{A3EDB8A3-1BB0-4E1A-A957-6F60D4C85290}.Debug|x64.ActiveCfg = Debug|x64
-		{A3EDB8A3-1BB0-4E1A-A957-6F60D4C85290}.Debug|x64.Build.0 = Debug|x64
-		{A3EDB8A3-1BB0-4E1A-A957-6F60D4C85290}.Release|x64.ActiveCfg = Release|x64
-		{A3EDB8A3-1BB0-4E1A-A957-6F60D4C85290}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

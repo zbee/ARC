@@ -2,14 +2,15 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
+using Dalamud.Interface.Textures;
 using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Utility.Raii;
+using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Common.Math;
-using ImGuiNET;
-using LLib;
 
 namespace ARControl.Windows.Config;
 
@@ -17,13 +18,13 @@ internal sealed class RetainersTab : ITab
 {
     private readonly ConfigWindow _configWindow;
     private readonly Configuration _configuration;
-    private readonly IconCache _iconCache;
+    private readonly ITextureProvider _textureProvider;
 
-    public RetainersTab(ConfigWindow configWindow, Configuration configuration, IconCache iconCache)
+    public RetainersTab(ConfigWindow configWindow, Configuration configuration, ITextureProvider textureProvider)
     {
         _configWindow = configWindow;
         _configuration = configuration;
-        _iconCache = iconCache;
+        _textureProvider = textureProvider;
     }
 
     public void Draw()
@@ -179,12 +180,9 @@ internal sealed class RetainersTab : ITab
 
             bool managed = retainer.Managed;
 
-            IDalamudTextureWrap? icon = _iconCache.GetIcon(62000 + retainer.Job);
-            if (icon != null)
-            {
-                ImGui.Image(icon.ImGuiHandle, new Vector2(ImGui.GetFrameHeight()));
-                ImGui.SameLine(0, ImGui.GetStyle().FramePadding.X);
-            }
+            var icon = _textureProvider.GetFromGameIcon(new GameIconLookup(62000 + retainer.Job));
+            ImGui.Image(icon.GetWrapOrEmpty().Handle, new Vector2(ImGui.GetFrameHeight()));
+            ImGui.SameLine(0, ImGui.GetStyle().FramePadding.X);
 
             if (ImGui.Checkbox(
                     $"{retainer.Name}###Retainer{retainer.Name}{retainer.RetainerContentId}",
