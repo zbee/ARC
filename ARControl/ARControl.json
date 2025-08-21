@@ -1,8 +1,8 @@
 {
   "Name": "ARC",
-  "Author": "Liza Carvelli",
+  "Author": "zbee, Liza Carvelli",
   "Punchline": "Better AutoRetainer Venture Planner",
-  "Description": "",
+  "Description": "Instead of manually managing retainer plans for each individual character,\nwhich can get fairly tedious fairly quickly, we optimize this a bit and\nonly manage \"high-level\" plans.",
   "RepoUrl": "https://git.carvel.li/liza/ARControl",
   "IconUrl": "https://plugins.carvel.li/icons/ARControl.png"
 }
