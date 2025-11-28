@@ -72,9 +72,13 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
         _autoRetainerApi.OnSendRetainerToVenture += SendRetainerToVenture;
         _autoRetainerApi.OnRetainerPostVentureTaskDraw += RetainerTaskButtonDraw;
         _clientState.TerritoryChanged += TerritoryChanged;
+        _commandManager.AddHandler("/arcontrol", new CommandInfo(ProcessCommand)
+        {
+            HelpMessage = "Manage retainers",
+        });
         _commandManager.AddHandler("/arc", new CommandInfo(ProcessCommand)
         {
-            HelpMessage = "Manage retainers"
+            HelpMessage = "Alias of /arcontrol",
         });
 
         if (_autoRetainerApi.Ready)
@@ -439,6 +443,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
 
     public void Dispose()
     {
+        _commandManager.RemoveHandler("/arcontrol");
         _commandManager.RemoveHandler("/arc");
         _clientState.TerritoryChanged -= TerritoryChanged;
         _autoRetainerApi.OnRetainerPostVentureTaskDraw -= RetainerTaskButtonDraw;
