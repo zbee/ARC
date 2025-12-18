@@ -30,13 +30,13 @@ public abstract class LWindow : Window
         }
     }
 
-    protected bool IsPinned
+    protected new bool IsPinned
     {
         get => InternalIsPinned(this);
         set => InternalIsPinned(this) = value;
     }
 
-    protected bool IsClickthrough
+    protected new bool IsClickthrough
     {
         get => InternalIsClickthrough(this);
         set => InternalIsClickthrough(this) = value;

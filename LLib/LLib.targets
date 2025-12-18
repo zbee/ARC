@@ -2,7 +2,7 @@
 <Project>
     <!-- default settings for nearly all projects -->
     <PropertyGroup>
-        <LangVersion>12</LangVersion>
+        <LangVersion>14</LangVersion>
         <Nullable>enable</Nullable>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <DebugType>portable</DebugType>
