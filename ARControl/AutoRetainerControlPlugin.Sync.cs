@@ -44,7 +44,7 @@ partial class AutoRetainerControlPlugin
                 save = true;
             }
 
-            if (_clientState.LocalContentId == registeredCharacterId)
+            if (_playerState.ContentId == registeredCharacterId)
             {
                 var unlockedFolkloreBooks = _gameCache.FolkloreBooks.Values.Where(x => x.IsUnlocked()).Select(x => x.ItemId).ToHashSet();
                 if (character.UnlockedFolkloreBooks != unlockedFolkloreBooks)

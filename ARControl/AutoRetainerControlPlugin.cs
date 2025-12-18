@@ -27,6 +27,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
 
     private readonly IDalamudPluginInterface _pluginInterface;
     private readonly IClientState _clientState;
+    private readonly IPlayerState _playerState;
     private readonly IChatGui _chatGui;
     private readonly ICommandManager _commandManager;
     private readonly IPluginLog _pluginLog;
@@ -39,15 +40,23 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
     private readonly AutoRetainerApi _autoRetainerApi;
     private readonly AutoRetainerReflection _autoRetainerReflection;
 
-    public AutoRetainerControlPlugin(IDalamudPluginInterface pluginInterface, IDataManager dataManager,
-        IClientState clientState, IChatGui chatGui, ICommandManager commandManager, ITextureProvider textureProvider,
-        IFramework framework, IPluginLog pluginLog)
+    public AutoRetainerControlPlugin
+    (IDalamudPluginInterface pluginInterface,
+        IDataManager dataManager,
+        IClientState clientState,
+        IPlayerState playerState,
+        IChatGui chatGui,
+        ICommandManager commandManager,
+        ITextureProvider textureProvider,
+        IFramework framework,
+        IPluginLog pluginLog)
     {
         ArgumentNullException.ThrowIfNull(pluginInterface);
         ArgumentNullException.ThrowIfNull(dataManager);
 
         _pluginInterface = pluginInterface;
         _clientState = clientState;
+        _playerState = playerState;
         _chatGui = chatGui;
         _commandManager = commandManager;
         _pluginLog = pluginLog;
@@ -59,8 +68,8 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
         DiscardHelperIpc discardHelperIpc = new(_pluginInterface);
         _allaganToolsIpc = new AllaganToolsIpc(pluginInterface, pluginLog);
         _configWindow =
-            new ConfigWindow(_pluginInterface, _configuration, _gameCache, _clientState, _commandManager,
-                textureProvider, discardHelperIpc, _allaganToolsIpc, _pluginLog);
+            new ConfigWindow(_pluginInterface, _configuration, _gameCache, _playerState,
+                _commandManager, textureProvider, discardHelperIpc, _allaganToolsIpc, _pluginLog);
         _windowSystem.AddWindow(_configWindow);
 
         ECommonsMain.Init(_pluginInterface, this);
@@ -111,7 +120,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
             return null;
         }
 
-        var ch = _configuration.Characters.SingleOrDefault(x => x.LocalContentId == _clientState.LocalContentId);
+        var ch = _configuration.Characters.SingleOrDefault(x => x.LocalContentId == _playerState.ContentId);
         if (ch == null)
         {
             _pluginLog.Information("No character information found");
@@ -402,7 +411,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
             Sync();
         else if (arguments.StartsWith("dnv", StringComparison.Ordinal))
         {
-            var ch = _configuration.Characters.SingleOrDefault(x => x.LocalContentId == _clientState.LocalContentId);
+            var ch = _configuration.Characters.SingleOrDefault(x => x.LocalContentId == _playerState.ContentId);
             if (ch == null || ch.Type == Configuration.CharacterType.NotManaged || ch.Retainers.Count == 0)
             {
                 _chatGui.PrintError("No character to debug.");

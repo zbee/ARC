@@ -22,16 +22,20 @@ internal sealed class LockedItemsTab : ITab
 
     private readonly ConfigWindow _configWindow;
     private readonly Configuration _configuration;
-    private readonly IClientState _clientState;
+    private readonly IPlayerState _playerState;
     private readonly ICommandManager _commandManager;
     private readonly GameCache _gameCache;
 
-    public LockedItemsTab(ConfigWindow configWindow, Configuration configuration, IClientState clientState,
-        ICommandManager commandManager, GameCache gameCache)
+    public LockedItemsTab
+    (ConfigWindow configWindow,
+        Configuration configuration,
+        IPlayerState playerState,
+        ICommandManager commandManager,
+        GameCache gameCache)
     {
         _configWindow = configWindow;
         _configuration = configuration;
-        _clientState = clientState;
+        _playerState = playerState;
         _commandManager = commandManager;
         _gameCache = gameCache;
     }
@@ -94,7 +98,7 @@ internal sealed class LockedItemsTab : ITab
     {
         foreach (var ch in charactersToCheck.Where(x => x.ToCheck(onlyShowMissing).Count != 0))
         {
-            bool currentCharacter = _clientState.LocalContentId == ch.Character.LocalContentId;
+            bool currentCharacter = _playerState.ContentId == ch.Character.LocalContentId;
             ImGui.BeginDisabled(currentCharacter);
             if (ImGuiComponents.IconButton($"SwitchCharacters{ch.Character.LocalContentId}",
                     FontAwesomeIcon.DoorOpen))
@@ -134,7 +138,7 @@ internal sealed class LockedItemsTab : ITab
                             ImGui.Selectable(itemName);
                             if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
                             {
-                                uint classJob = _clientState.LocalPlayer!.ClassJob.RowId;
+                                uint classJob = _playerState.ClassJob.RowId;
                                 if (classJob == 16)
                                     _commandManager.ProcessCommand($"/gathermin {item.GatheredItem.Name}");
                                 else if (classJob == 17)
@@ -175,7 +179,7 @@ internal sealed class LockedItemsTab : ITab
                     var color = ch.Items[item.ItemId];
                     if (color == ColorRed || (color == ColorGreen && !onlyShowMissing))
                     {
-                        bool currentCharacter = _clientState.LocalContentId == ch.Character.LocalContentId;
+                        bool currentCharacter = _playerState.ContentId == ch.Character.LocalContentId;
                         if (currentCharacter)
                         {
                             ImGui.PushFont(UiBuilder.IconFont);

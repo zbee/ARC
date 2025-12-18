@@ -1,0 +1,6 @@
+﻿<Project>
+    <PropertyGroup>
+        <NoWarn>$(NoWarn);MSB3277</NoWarn>
+        <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);MSB3277</MSBuildWarningsAsMessages>
+    </PropertyGroup>
+</Project>
