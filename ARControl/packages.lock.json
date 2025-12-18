@@ -26,8 +26,8 @@
       },
       "ECommons": {
         "type": "Transitive",
-        "resolved": "3.0.1.5",
-        "contentHash": "dUbgHV16y3nq/PgEg244IpBAuP0FQfrBFyrlNDfSkeNrB7Ze7WqOneGP+Nuorr1hLv0p2E2nyrNvFp8mJuKDWQ=="
+        "resolved": "3.1.0.1",
+        "contentHash": "FFpTsFd3jZMAX8becFBr/yPlKwkZT0PpuH3KGKPwTMQhtTJfvz4w6exiZmNwk5fuar5FhCDxjpb5BYsq87JsbQ=="
       },
       "JetBrains.Annotations": {
         "type": "Transitive",
@@ -47,7 +47,7 @@
       "autoretainerapi": {
         "type": "Project",
         "dependencies": {
-          "ECommons": "[3.0.1.5, )"
+          "ECommons": "[3.1.0.1, )"
         }
       },
       "llib": {
