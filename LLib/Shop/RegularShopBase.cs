@@ -82,9 +82,9 @@ public class RegularShopBase
             short x = 0, y = 0;
             addon->GetPosition(&x, &y);
 
-            short width = 0, height = 0;
+            ushort width = 0, height = 0;
             addon->GetSize(&width, &height, true);
-            x += width;
+            x += (short)width;
 
             if (_parentWindow.Position is {} position && ((short)position.X != x || (short)position.Y != y))
                 _parentWindow.Position = new Vector2(x, y);

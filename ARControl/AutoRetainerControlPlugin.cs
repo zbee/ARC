@@ -403,7 +403,7 @@ public sealed partial class AutoRetainerControlPlugin : IDalamudPlugin
         }
     }
 
-    private void TerritoryChanged(ushort e) => Sync();
+    private void TerritoryChanged(uint e) => Sync();
 
     private void ProcessCommand(string command, string arguments)
     {
