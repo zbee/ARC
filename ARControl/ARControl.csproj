@@ -1,6 +1,6 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
     <PropertyGroup>
-        <Version>8.5</Version>
+        <Version>8.6</Version>
         <OutputPath>dist</OutputPath>
     </PropertyGroup>
 
