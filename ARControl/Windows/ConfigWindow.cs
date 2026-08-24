@@ -182,8 +182,19 @@ internal sealed class ConfigWindow : LWindow
                     ImGui.Spacing();
                     foreach (var item in list.Items)
                     {
-                        var venture = _gameCache.Ventures.First(x => x.ItemId == item.ItemId);
-                        ImGui.Text($"{item.RemainingQuantity}x {venture.Name}");
+                        try
+                        {
+                            var venture = _gameCache.Ventures.First(x => x.ItemId == item.ItemId);
+                            ImGui.Text($"{item.RemainingQuantity}x {venture.Name}");
+                        }
+                        catch (InvalidOperationException e)
+                        {
+                            ImGui.TextColored(ImGuiColors.DalamudRed,
+                                $"Invalid Item: {item.ItemId}. Please report.");
+                            _pluginLog.Error(
+                                e, $"Invalid Item could not be listed {item.ItemId}"
+                            );
+                        }
                     }
 
                     ImGui.Unindent(MainIndentSize);
